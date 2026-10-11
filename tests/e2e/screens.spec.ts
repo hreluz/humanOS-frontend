@@ -18,6 +18,8 @@ const MODALS: { name: string, from: string, trigger: string | RegExp, ready: str
   { name: 'modal-meal-planner', from: '/food', trigger: 'Meal planner', ready: 'Generate grocery list' },
   { name: 'modal-grocery', from: '/food', trigger: 'Grocery list', ready: 'Pantry' },
   { name: 'modal-coach', from: '/', trigger: /Coach's tip for today/, ready: 'Your weight has plateaued' },
+  { name: 'modal-edit-profile', from: '/profile', trigger: 'Edit profile', ready: 'Current weight' },
+  { name: 'modal-weigh-in', from: '/weekly-review', trigger: 'Log this week', ready: 'Last weigh-in: 82.1 kg' },
 ]
 
 test.beforeEach(async ({ context, baseURL }) => {
@@ -117,6 +119,36 @@ test.describe('interactions', () => {
     await page.keyboard.press('Enter')
     await expect(page.getByText('I slept 5 hours')).toBeVisible()
     await expect(page.getByText(/fold that into tomorrow's plan/)).toBeVisible()
+  })
+
+  test('editing the profile updates About you', async ({ page }) => {
+    await gotoReady(page, '/profile')
+    await page.getByRole('button', { name: 'Edit profile' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Target weight').fill('78')
+    await dialog.getByRole('radio', { name: 'Very active' }).click()
+    await dialog.getByRole('button', { name: 'Save changes' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page.getByText('78 kg')).toBeVisible()
+    await expect(page.getByText('Very active')).toBeVisible()
+  })
+
+  test('logging a weigh-in from home shows up in the weekly review', async ({ page }) => {
+    await gotoReady(page, '/')
+    const prompt = page.getByRole('button', { name: /Log this week's weight/ })
+    await expect(prompt).toContainText('Last: 82.1 kg')
+    await prompt.click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Weight').fill('81.6')
+    await dialog.getByRole('button', { name: 'Save weigh-in' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(prompt).toBeHidden()
+
+    await page.getByRole('link', { name: 'View full weekly review' }).click()
+    await expect(page.getByText('−0.5 kg this week')).toBeVisible()
+    await expect(page.getByTestId('weigh-in-row')).toHaveCount(6)
+    await expect(page.getByTestId('weigh-in-row').first()).toContainText('81.6 kg')
+    await expect(page.getByRole('button', { name: 'Update this week' })).toBeVisible()
   })
 
   test('theme switcher persists across reloads', async ({ page }) => {

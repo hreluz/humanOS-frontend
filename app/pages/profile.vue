@@ -3,16 +3,18 @@ definePageMeta({ tab: 'profile' })
 
 const { user, userName, initial, goalLabel, signOut, signingOut } = useAuth()
 const { targets } = useFoodLog()
+const { latest } = useWeighIns()
+const { open } = useModal()
 
 const about = computed(() => {
   const p = user.value?.profile
   if (!p) return []
   return [
-    ['Goal', goalLabel.value],
-    ['Weight', p.weight ? p.weight + ' kg' : '—'],
-    ...(p.target && goalNeedsTarget(p.goal) ? [['Target weight', p.target + ' kg']] : []),
-    ['Height', p.height ? p.height + ' cm' : '—'],
-    ['Activity', p.activity || '—'],
+    { label: 'Goal', value: goalLabel.value },
+    { label: 'Weight', value: p.weight ? p.weight + ' kg' : '—', note: latest.value ? `Logged ${formatWeek(latest.value.week)}` : undefined },
+    ...(p.target && goalNeedsTarget(p.goal) ? [{ label: 'Target weight', value: p.target + ' kg' }] : []),
+    { label: 'Height', value: p.height ? p.height + ' cm' : '—' },
+    { label: 'Activity', value: p.activity || '—' },
   ]
 })
 </script>
@@ -26,11 +28,17 @@ const about = computed(() => {
         <div class="text-sm truncate" :class="inkFaintCls">{{ user.email }}</div>
       </div>
     </div>
-    <h2 class="text-xs font-bold tracking-wide uppercase mb-2" :class="inkFaintCls">About you</h2>
+    <div class="flex items-baseline justify-between mb-2">
+      <h2 class="text-xs font-bold tracking-wide uppercase" :class="inkFaintCls">About you</h2>
+      <button type="button" class="text-[13.5px] font-semibold" :class="linkBlueCls" aria-label="Edit profile" @click="open('editProfile')">Edit</button>
+    </div>
     <div class="rounded-2xl overflow-hidden shadow-xs mb-6" :class="cardCls">
-      <div v-for="([k, v], i) in about" :key="k" class="flex justify-between px-[18px] py-3.5" :class="i < about.length - 1 ? ['border-b', dividerCls] : ''">
-        <span class="text-[14.5px]" :class="inkSoftCls">{{ k }}</span>
-        <span class="text-[14.5px] font-semibold" :class="inkCls">{{ v }}</span>
+      <div v-for="(row, i) in about" :key="row.label" class="flex justify-between items-baseline gap-3 px-[18px] py-3.5" :class="i < about.length - 1 ? ['border-b', dividerCls] : ''">
+        <span class="text-[14.5px]" :class="inkSoftCls">{{ row.label }}</span>
+        <span class="text-right">
+          <span v-if="row.note" class="text-[12.5px] mr-2" :class="inkFaintCls">{{ row.note }}</span>
+          <span class="text-[14.5px] font-semibold" :class="inkCls">{{ row.value }}</span>
+        </span>
       </div>
     </div>
     <h2 class="text-xs font-bold tracking-wide uppercase mb-2" :class="inkFaintCls">Daily targets</h2>

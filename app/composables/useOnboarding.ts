@@ -2,14 +2,13 @@ import type { UserProfile } from '~/types/auth'
 
 export function useOnboarding() {
   const { firstName, saveProfile } = useAuth()
+  const { logWeighIn } = useWeighIns()
   const step = ref<0 | 1>(0)
   const submitting = ref(false)
   const profile = reactive<UserProfile>({ goal: 'lose', age: '', height: '', weight: '', target: '', activity: 'Moderate' })
 
   const needsTarget = computed(() => goalNeedsTarget(profile.goal))
-  const statsValid = computed(() =>
-    +profile.age > 0 && +profile.height > 0 && +profile.weight > 0 && (!needsTarget.value || +profile.target > 0),
-  )
+  const statsValid = computed(() => profileStatsValid(profile))
   const canSubmit = computed(() => step.value === 0 || statsValid.value)
 
   async function next() {
@@ -21,6 +20,8 @@ export function useOnboarding() {
     submitting.value = true
     try {
       await saveProfile({ ...profile })
+      // The onboarding weight is the first point on the weekly trend.
+      await logWeighIn(+profile.weight, profile.activity)
       await navigateTo('/')
     }
     finally {

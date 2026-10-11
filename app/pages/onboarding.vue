@@ -19,24 +19,7 @@ const { step, profile, firstName, needsTarget, canSubmit, submitting, next, back
       </template>
     </AuthHeading>
 
-    <div v-if="step === 0" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" role="radiogroup" aria-label="Main goal">
-      <button
-        v-for="g in ONBOARD_GOALS"
-        :key="g.key"
-        type="button"
-        role="radio"
-        :aria-checked="profile.goal === g.key"
-        class="rounded-xl p-3.5 border-2 flex sm:flex-col gap-3 sm:gap-2 items-center sm:items-start text-left"
-        :class="profile.goal === g.key ? 'border-ink dark:border-white' : 'border-black/[0.06] dark:border-white/10 hover:border-black/20 dark:hover:border-white/25'"
-        @click="profile.goal = g.key"
-      >
-        <AppIcon :path="g.icon" class="w-5 h-5 shrink-0" :class="inkCls" />
-        <div>
-          <div class="text-[14px] font-semibold" :class="inkCls">{{ g.label }}</div>
-          <div class="text-[12px]" :class="inkSoftCls">{{ g.hint }}</div>
-        </div>
-      </button>
-    </div>
+    <AppGoalPicker v-if="step === 0" v-model="profile.goal" />
 
     <template v-else>
       <div class="grid grid-cols-2 gap-3">
@@ -45,23 +28,7 @@ const { step, profile, firstName, needsTarget, canSubmit, submitting, next, back
         <AuthField v-model="profile.weight" label="Weight" type="number" placeholder="82" suffix="kg" />
         <AuthField v-if="needsTarget" v-model="profile.target" label="Target weight" type="number" :placeholder="profile.goal === 'lose' ? '76' : '86'" suffix="kg" />
       </div>
-      <div class="flex flex-col gap-1.5">
-        <span class="text-[12.5px] font-semibold" :class="inkSoftCls">Activity level</span>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-canvas dark:bg-white/[0.06] rounded-xl p-1" role="radiogroup" aria-label="Activity level">
-          <button
-            v-for="a in ACTIVITY_LEVELS"
-            :key="a"
-            type="button"
-            role="radio"
-            :aria-checked="profile.activity === a"
-            class="text-center py-2 rounded-lg text-[12.5px] font-semibold"
-            :class="profile.activity === a ? 'bg-ink text-white dark:bg-white dark:text-black' : inkSoftCls"
-            @click="profile.activity = a"
-          >
-            {{ a }}
-          </button>
-        </div>
-      </div>
+      <AppActivityPicker v-model="profile.activity" />
     </template>
 
     <div class="flex gap-2.5 mt-1">

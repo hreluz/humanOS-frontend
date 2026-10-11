@@ -13,7 +13,9 @@ const PROFILE_OPTS = { default: (): StoredProfile | null => null, sameSite: 'lax
 
 export function useAuth() {
   const token = useCookie<string | null>(TOKEN_COOKIE, TOKEN_OPTS)
-  const storedProfile = useCookie<StoredProfile | null>('humanos_profile', PROFILE_OPTS)
+  // Shared state keeps every caller in sync at once (separate cookie refs only sync asynchronously); the cookie persists it.
+  const profileCookie = useCookie<StoredProfile | null>('humanos_profile', PROFILE_OPTS)
+  const storedProfile = useState<StoredProfile | null>('auth-profile', () => profileCookie.value)
   const account = useState<AuthUser | null>('auth-user', () => null)
   const signingOut = useState('auth-signing-out', () => false)
 
@@ -63,6 +65,7 @@ export function useAuth() {
   async function saveProfile(value: UserProfile) {
     if (!account.value) return
     storedProfile.value = { userId: account.value.id, profile: await authService.saveProfile(value) }
+    profileCookie.value = storedProfile.value
   }
 
   async function signOut() {

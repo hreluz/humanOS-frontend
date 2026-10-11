@@ -8,6 +8,7 @@ const { summary } = useFoodLog()
 const { steps } = useTodayActivity()
 const { review } = useWeeklyReview()
 const { tip } = useCoachTip()
+const { latest, loggedThisWeek } = useWeighIns()
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 </script>
@@ -69,6 +70,17 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <div class="text-[15px] font-semibold text-white">Coach's tip for today</div>
         </div>
         <div class="text-[13.5px] text-white/65 leading-relaxed">{{ tip }}</div>
+      </button>
+
+      <button v-if="!loggedThisWeek" type="button" class="rounded-2xl p-5 shadow-xs text-left flex gap-3.5 items-center" :class="cardCls" @click="open('weighIn')">
+        <div class="w-11 h-11 rounded-[13px] flex items-center justify-center shrink-0" :class="ACCENT.violet.iconBg">
+          <AppIcon :path="ICONS.scale" class="w-5 h-5" :class="ACCENT.violet.icon" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[15px] font-bold" :class="inkCls">Log this week's weight</div>
+          <div class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ latest ? `Last: ${latest.weight} kg on ${formatWeek(latest.week)}` : 'Start tracking your progress' }}</div>
+        </div>
+        <AppIcon :path="ICONS.chevronRight" class="w-3.5 h-3.5 shrink-0" :class="inkFaintCls" />
       </button>
 
       <div v-if="review" class="rounded-2xl p-5 shadow-xs" :class="cardCls">

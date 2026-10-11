@@ -9,6 +9,7 @@ export const ICONS = {
   check: 'M5 12l5 5L20 7',
   chevronUp: 'M5 15l7-7 7 7',
   signOut: 'M15 12H4m4-4l-4 4 4 4M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4',
+  scale: 'M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zM9 10a3 3 0 016 0m-3 0l1.5-2',
 }
 
 export const NAV_DEFS: { key: TabKey, label: string, to: string, icon: string }[] = [
