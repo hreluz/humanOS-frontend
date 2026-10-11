@@ -25,18 +25,19 @@ export const SCREEN_TITLES: Record<TabKey, string> = {
 
 // Accent -> tailwind class groups (light / dark handled via dark: variants)
 export const ACCENT: Record<Accent, { icon: string, track: string, bar: string, iconBg: string }> = {
-  blue: { icon: 'text-[#2F6FED] dark:text-[#4C8DFF]', track: 'bg-[#E7EEFC] dark:bg-[#4C8DFF]/20', bar: 'bg-[#2F6FED] dark:bg-[#4C8DFF]', iconBg: 'bg-[#E7EEFC] dark:bg-[#4C8DFF]/20' },
-  green: { icon: 'text-[#33C463] dark:text-[#32D74B]', track: 'bg-[#E5F6EC] dark:bg-[#32D74B]/20', bar: 'bg-[#33C463] dark:bg-[#32D74B]', iconBg: 'bg-[#E5F6EC] dark:bg-[#32D74B]/20' },
-  coral: { icon: 'text-[#FF6B4A] dark:text-[#FF7A5C]', track: 'bg-[#FDEEE9] dark:bg-[#FF7A5C]/20', bar: 'bg-[#FF6B4A] dark:bg-[#FF7A5C]', iconBg: 'bg-[#FDEEE9] dark:bg-[#FF7A5C]/20' },
-  amber: { icon: 'text-[#F5A623] dark:text-[#FFB340]', track: 'bg-[#FDF3E2] dark:bg-white/[0.08]', bar: 'bg-[#F5A623] dark:bg-[#FFB340]', iconBg: 'bg-[#FDF3E2] dark:bg-white/[0.08]' },
-  violet: { icon: 'text-[#9B6BFF] dark:text-[#BF6BFF]', track: 'bg-[#F3EBFD] dark:bg-[#BF6BFF]/20', bar: 'bg-[#9B6BFF] dark:bg-[#BF6BFF]', iconBg: 'bg-[#F3EBFD] dark:bg-[#BF6BFF]/20' },
+  blue: { icon: 'text-accent-blue dark:text-accent-blue-dark', track: 'bg-accent-blue-tint dark:bg-accent-blue-dark/20', bar: 'bg-accent-blue dark:bg-accent-blue-dark', iconBg: 'bg-accent-blue-tint dark:bg-accent-blue-dark/20' },
+  green: { icon: 'text-accent-green dark:text-accent-green-dark', track: 'bg-accent-green-tint dark:bg-accent-green-dark/20', bar: 'bg-accent-green dark:bg-accent-green-dark', iconBg: 'bg-accent-green-tint dark:bg-accent-green-dark/20' },
+  coral: { icon: 'text-accent-coral dark:text-accent-coral-dark', track: 'bg-accent-coral-tint dark:bg-accent-coral-dark/20', bar: 'bg-accent-coral dark:bg-accent-coral-dark', iconBg: 'bg-accent-coral-tint dark:bg-accent-coral-dark/20' },
+  amber: { icon: 'text-accent-amber dark:text-accent-amber-dark', track: 'bg-accent-amber-tint dark:bg-white/[0.08]', bar: 'bg-accent-amber dark:bg-accent-amber-dark', iconBg: 'bg-accent-amber-tint dark:bg-white/[0.08]' },
+  violet: { icon: 'text-accent-violet dark:text-accent-violet-dark', track: 'bg-accent-violet-tint dark:bg-accent-violet-dark/20', bar: 'bg-accent-violet dark:bg-accent-violet-dark', iconBg: 'bg-accent-violet-tint dark:bg-accent-violet-dark/20' },
 }
 
 // Shared design tokens
-export const cardCls = 'bg-white dark:bg-[#1C1C1E]'
-export const inkCls = 'text-[#0B0B0C] dark:text-white'
+export const cardCls = 'bg-white dark:bg-surface-dark'
+export const inkCls = 'text-ink dark:text-white'
 export const inkSoftCls = 'text-black/55 dark:text-white/55'
 export const inkFaintCls = 'text-black/40 dark:text-white/40'
 export const dividerCls = 'border-black/[0.06] dark:border-white/10'
-export const bgCls = 'bg-[#F2F2F7] dark:bg-black'
-export const linkBlueCls = 'text-[#2F6FED] dark:text-[#4C8DFF]'
+export const bgCls = 'bg-canvas dark:bg-black'
+export const authLinkCls = 'font-semibold text-ink dark:text-white underline underline-offset-2'
+export const linkBlueCls = 'text-accent-blue dark:text-accent-blue-dark'

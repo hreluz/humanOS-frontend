@@ -14,13 +14,13 @@ const tiles = computed(() => review.value
       <div class="rounded-2xl p-5 shadow-xs" :class="cardCls">
         <div class="flex justify-between items-baseline mb-3">
           <span class="text-[14px]" :class="inkSoftCls">Weight trend</span>
-          <span class="text-[15px] font-bold text-[#33C463] dark:text-[#32D74B]">{{ review.weightDelta }}</span>
+          <span class="text-[15px] font-bold text-accent-green dark:text-accent-green-dark">{{ review.weightDelta }}</span>
         </div>
         <svg width="100%" height="64" viewBox="0 0 320 56" preserveAspectRatio="none" role="img" aria-label="Weight trend this week">
           <polyline :points="review.trendPoints" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" :class="linkBlueCls" />
         </svg>
       </div>
-      <div class="bg-[#0B0B0C] rounded-2xl p-5">
+      <div class="bg-ink rounded-2xl p-5">
         <div class="text-[14.5px] font-semibold text-white mb-2">Coach's recommendation</div>
         <div class="text-[13.5px] text-white/70 leading-relaxed">{{ review.recommendation }}</div>
       </div>

@@ -14,7 +14,7 @@ const { preference, setPreference } = useTheme()
       role="radio"
       :aria-checked="preference === key"
       class="px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-[12.5px] font-semibold"
-      :class="preference === key ? 'bg-[#0B0B0C] text-white dark:bg-white dark:text-black' : inkSoftCls"
+      :class="preference === key ? 'bg-ink text-white dark:bg-white dark:text-black' : inkSoftCls"
       @click="setPreference(key)"
     >
       {{ key[0]!.toUpperCase() + key.slice(1) }}

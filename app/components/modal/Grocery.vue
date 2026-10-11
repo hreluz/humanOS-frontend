@@ -27,7 +27,7 @@ const { list, itemCount, total, toggle } = useGrocery()
           >
             <div
               class="w-[18px] h-[18px] rounded-md border shrink-0 flex items-center justify-center"
-              :class="list?.checked[it.id] ? 'bg-[#2F6FED] dark:bg-[#4C8DFF] border-[#2F6FED] dark:border-[#4C8DFF]' : 'border-black/20 dark:border-white/30'"
+              :class="list?.checked[it.id] ? 'bg-accent-blue dark:bg-accent-blue-dark border-accent-blue dark:border-accent-blue-dark' : 'border-black/20 dark:border-white/30'"
             >
               <svg v-if="list?.checked[it.id]" width="9" height="7" viewBox="0 0 11 9"><path d="M1 4.5L4 8l6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>
             </div>

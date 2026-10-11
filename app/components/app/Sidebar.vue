@@ -27,7 +27,7 @@ const { userName, initial, goalLabel } = useAuth()
 
     <div class="flex-1" />
 
-    <button type="button" class="bg-[#0B0B0C] rounded-2xl p-3.5 flex items-center gap-2.5 mb-3 text-left" @click="open('coach')">
+    <button type="button" class="bg-ink rounded-2xl p-3.5 flex items-center gap-2.5 mb-3 text-left" @click="open('coach')">
       <div class="w-8 h-8 rounded-[10px] bg-white/10 flex items-center justify-center shrink-0">
         <AppIcon :path="ICONS.coach" class="w-4 h-4 text-white" />
       </div>
@@ -38,7 +38,7 @@ const { userName, initial, goalLabel } = useAuth()
     </button>
 
     <div class="flex items-center gap-2.5 p-2">
-      <div class="w-[30px] h-[30px] rounded-full bg-[#0B0B0C] flex items-center justify-center text-white text-[13px] font-semibold shrink-0">{{ initial }}</div>
+      <div class="w-[30px] h-[30px] rounded-full bg-ink flex items-center justify-center text-white text-[13px] font-semibold shrink-0">{{ initial }}</div>
       <div class="flex-1 min-w-0">
         <div class="text-[13.5px] font-semibold truncate" :class="inkCls">{{ userName }}</div>
         <div class="text-[11.5px]" :class="inkFaintCls">{{ goalLabel }}</div>

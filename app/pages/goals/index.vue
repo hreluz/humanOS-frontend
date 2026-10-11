@@ -13,6 +13,6 @@ const { goals } = useGoals()
       </div>
       <AppProgressBar :pct="g.pct" :accent="g.accent" />
     </div>
-    <NuxtLink to="/goals/new" class="self-start px-5 py-2.5 rounded-full bg-[#0B0B0C] text-white text-[14px] font-semibold mt-1.5">+ New goal</NuxtLink>
+    <NuxtLink to="/goals/new" class="self-start px-5 py-2.5 rounded-full bg-ink text-white text-[14px] font-semibold mt-1.5">+ New goal</NuxtLink>
   </div>
 </template>

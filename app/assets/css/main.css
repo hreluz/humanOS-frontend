@@ -4,6 +4,28 @@
 
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Palette. Dark-mode counterparts are separate `-dark` tokens, applied with the `dark:` variant. */
+  --color-ink: #0B0B0C;
+  --color-canvas: #F2F2F7;
+  --color-surface-dark: #1C1C1E;
+  --color-accent-blue: #2F6FED;
+  --color-accent-blue-dark: #4C8DFF;
+  --color-accent-blue-tint: #E7EEFC;
+  --color-accent-green: #33C463;
+  --color-accent-green-dark: #32D74B;
+  --color-accent-green-tint: #E5F6EC;
+  --color-accent-green-strong: #1F8A45;
+  --color-accent-coral: #FF6B4A;
+  --color-accent-coral-dark: #FF7A5C;
+  --color-accent-coral-tint: #FDEEE9;
+  --color-accent-coral-strong: #E5532F;
+  --color-accent-amber: #F5A623;
+  --color-accent-amber-dark: #FFB340;
+  --color-accent-amber-tint: #FDF3E2;
+  --color-accent-violet: #9B6BFF;
+  --color-accent-violet-dark: #BF6BFF;
+  --color-accent-violet-tint: #F3EBFD;
 }
 
 @layer base {

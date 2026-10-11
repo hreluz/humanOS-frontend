@@ -16,7 +16,7 @@ const { days, day, plan } = useMealPlanner()
           :key="d"
           type="button"
           class="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl"
-          :class="day === d ? 'bg-[#0B0B0C]' : ''"
+          :class="day === d ? 'bg-ink' : ''"
           :aria-pressed="day === d"
           @click="day = d"
         >
@@ -41,7 +41,7 @@ const { days, day, plan } = useMealPlanner()
           </div>
         </div>
       </template>
-      <button type="button" class="w-full h-11 rounded-full bg-[#0B0B0C] text-white flex items-center justify-center text-[13.5px] font-semibold mt-[18px]" @click="open('grocery')">Generate grocery list</button>
+      <button type="button" class="w-full h-11 rounded-full bg-ink text-white flex items-center justify-center text-[13.5px] font-semibold mt-[18px]" @click="open('grocery')">Generate grocery list</button>
     </div>
   </ModalShell>
 </template>

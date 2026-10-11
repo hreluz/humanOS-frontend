@@ -7,7 +7,9 @@ export function createScreenshotDir() {
   try {
     branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim()
   }
-  catch {}
+  catch {
+    // Not a git checkout: keep the default.
+  }
   // Local time, e.g. 2026-10-10T14-03-22
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
