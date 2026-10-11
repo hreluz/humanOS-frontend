@@ -7,6 +7,8 @@ export const ICONS = {
   protein: 'M12 2v20M6 8h12M4 14h16',
   steps: 'M13 3l-8 11h6l-1 7 8-11h-6l1-7z',
   check: 'M5 12l5 5L20 7',
+  chevronUp: 'M5 15l7-7 7 7',
+  signOut: 'M15 12H4m4-4l-4 4 4 4M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4',
 }
 
 export const NAV_DEFS: { key: TabKey, label: string, to: string, icon: string }[] = [

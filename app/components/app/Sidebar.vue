@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{ activeTab?: string }>()
 const { open } = useModal()
-const { userName, initial, goalLabel } = useAuth()
 </script>
 
 <template>
@@ -37,12 +36,6 @@ const { userName, initial, goalLabel } = useAuth()
       </div>
     </button>
 
-    <div class="flex items-center gap-2.5 p-2">
-      <div class="w-[30px] h-[30px] rounded-full bg-ink flex items-center justify-center text-white text-[13px] font-semibold shrink-0">{{ initial }}</div>
-      <div class="flex-1 min-w-0">
-        <div class="text-[13.5px] font-semibold truncate" :class="inkCls">{{ userName }}</div>
-        <div class="text-[11.5px]" :class="inkFaintCls">{{ goalLabel }}</div>
-      </div>
-    </div>
+    <AppAccountMenu />
   </nav>
 </template>
