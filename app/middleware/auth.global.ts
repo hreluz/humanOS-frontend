@@ -1,11 +1,19 @@
-const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/onboarding']
+const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password']
 
-export default defineNuxtRouteMiddleware((to) => {
-  const { isAuthenticated } = useAuth()
-  const isAuthRoute = AUTH_ROUTES.includes(to.path)
+export default defineNuxtRouteMiddleware(async (to) => {
+  const { hasToken, isAuthenticated, hasProfile, fetchMe } = useAuth()
 
-  if (!isAuthenticated.value && !isAuthRoute) return navigateTo('/login')
-  if (isAuthenticated.value && isAuthRoute) return navigateTo('/')
-  // Onboarding continues a signup in progress; without one, start over.
-  if (to.path === '/onboarding' && !useSignupDraft().value) return navigateTo('/signup')
+  // Restore the account from the token (first SSR render, or after a reload).
+  if (hasToken.value && !isAuthenticated.value) await fetchMe()
+
+  if (!isAuthenticated.value) {
+    if (!AUTH_ROUTES.includes(to.path)) return navigateTo('/login')
+    return
+  }
+  // Signed in without a profile on this browser: onboarding first.
+  if (!hasProfile.value) {
+    if (to.path !== '/onboarding') return navigateTo('/onboarding')
+    return
+  }
+  if (AUTH_ROUTES.includes(to.path) || to.path === '/onboarding') return navigateTo('/')
 })

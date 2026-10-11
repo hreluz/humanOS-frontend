@@ -1,41 +1,83 @@
-import type { SignupDraft, User, UserProfile } from '~/types/auth'
+import type { AuthSession, AuthUser, RegisterPayload, User, UserProfile } from '~/types/auth'
 import * as authService from '~/services/authService'
+import { TOKEN_COOKIE } from '~/services/api'
 
-const COOKIE_OPTS = { default: (): User | null => null, sameSite: 'lax' as const, maxAge: 60 * 60 * 24 * 30 }
+interface StoredProfile {
+  userId: number
+  profile: UserProfile
+}
+
+const DAY = 60 * 60 * 24
+const TOKEN_OPTS = { default: (): string | null => null, sameSite: 'lax' as const, maxAge: DAY * 30 }
+const PROFILE_OPTS = { default: (): StoredProfile | null => null, sameSite: 'lax' as const, maxAge: DAY * 365 }
 
 export function useAuth() {
-  const cookie = useCookie<User | null>('humanos_user', COOKIE_OPTS)
-  const user = useState<User | null>('auth-user', () => cookie.value ?? null)
+  const token = useCookie<string | null>(TOKEN_COOKIE, TOKEN_OPTS)
+  const storedProfile = useCookie<StoredProfile | null>('humanos_profile', PROFILE_OPTS)
+  const account = useState<AuthUser | null>('auth-user', () => null)
 
-  function setUser(value: User | null) {
-    user.value = value
-    cookie.value = value
-  }
+  // A profile saved by another account on this browser is ignored.
+  const profile = computed(() =>
+    account.value && storedProfile.value?.userId === account.value.id ? storedProfile.value.profile : null,
+  )
+  const user = computed<User | null>(() => account.value && { ...account.value, profile: profile.value })
 
-  const isAuthenticated = computed(() => !!user.value)
+  const hasToken = computed(() => !!token.value)
+  const isAuthenticated = computed(() => !!account.value)
+  const hasProfile = computed(() => !!profile.value)
   const userName = computed(() => user.value?.name || 'You')
   const firstName = computed(() => userName.value.split(' ')[0])
   const initial = computed(() => userName.value[0]!.toUpperCase())
-  const goalLabel = computed(() => goalLabelFor(user.value?.goal))
+  const goalLabel = computed(() => goalLabelFor(profile.value?.goal))
 
-  async function signIn(email: string, password: string) {
-    setUser(await authService.signIn(email, password))
+  function startSession(session: AuthSession) {
+    token.value = session.token
+    account.value = session.user
   }
 
-  async function completeOnboarding(draft: SignupDraft, profile: UserProfile) {
-    setUser(await authService.completeOnboarding(draft, profile))
+  function clearSession() {
+    token.value = null
+    account.value = null
+  }
+
+  async function login(email: string, password: string) {
+    startSession(await authService.login(email, password))
+  }
+
+  async function register(payload: RegisterPayload) {
+    startSession(await authService.register(payload))
+  }
+
+  /** Restores the account from the token; an invalid or expired token is cleared. */
+  async function fetchMe() {
+    try {
+      account.value = await authService.me()
+    }
+    catch (err) {
+      if (apiStatus(err) !== 401) throw err
+      clearSession()
+    }
+  }
+
+  async function saveProfile(value: UserProfile) {
+    if (!account.value) return
+    storedProfile.value = { userId: account.value.id, profile: await authService.saveProfile(value) }
   }
 
   async function signOut() {
-    await authService.signOut()
-    setUser(null)
+    try {
+      await authService.logout()
+    }
+    catch (err) {
+      if (apiStatus(err) !== 401) throw err
+    }
+    clearSession()
     await navigateTo('/login')
     clearNuxtState(key => key !== 'auth-user' && key !== 'theme-preference')
   }
 
-  return { user, isAuthenticated, userName, firstName, initial, goalLabel, signIn, completeOnboarding, signOut }
-}
-
-export function useSignupDraft() {
-  return useState<SignupDraft | null>('signup-draft', () => null)
+  return {
+    user, hasToken, isAuthenticated, hasProfile, userName, firstName, initial, goalLabel,
+    login, register, fetchMe, saveProfile, signOut,
+  }
 }

@@ -9,6 +9,16 @@ export interface OnboardGoal {
   icon: string
 }
 
+// Account as returned by the API (UserResource), mapped to camelCase in the service.
+export interface AuthUser {
+  id: number
+  name: string
+  email: string
+  role: string
+  emailVerifiedAt: string | null
+  createdAt: string | null
+}
+
 // Numeric fields stay strings: they come straight from form inputs.
 export interface UserProfile {
   goal: GoalKey
@@ -19,13 +29,29 @@ export interface UserProfile {
   activity: ActivityLevel
 }
 
-export interface User extends UserProfile {
-  name: string
-  email: string
+// What the UI consumes: account + profile (profile is null until onboarding is done).
+export interface User extends AuthUser {
+  profile: UserProfile | null
 }
 
-export interface SignupDraft {
+export interface AuthSession {
+  token: string
+  user: AuthUser
+}
+
+export interface RegisterPayload {
   name: string
   email: string
   password: string
+  passwordConfirmation: string
 }
+
+export interface ResetPasswordPayload {
+  token: string
+  email: string
+  password: string
+  passwordConfirmation: string
+}
+
+// Field → first message, built from a 422 `{ message, errors: { field: string[] } }`.
+export type FieldErrors = Record<string, string | undefined>

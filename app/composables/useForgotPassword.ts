@@ -3,6 +3,7 @@ import * as authService from '~/services/authService'
 export function useForgotPassword() {
   const email = ref('')
   const error = ref<string>()
+  const formError = ref<string>()
   const sent = ref(false)
   const submitting = ref(false)
 
@@ -13,10 +14,16 @@ export function useForgotPassword() {
       error.value = 'Enter a valid email'
       return
     }
+    formError.value = undefined
     submitting.value = true
     try {
-      await authService.requestPasswordReset(email.value)
+      await authService.forgotPassword(email.value)
       sent.value = true
+    }
+    catch (err) {
+      const fields = toFieldErrors(err)
+      if (fields) error.value = fields.email
+      else formError.value = toFormMessage(err)
     }
     finally {
       submitting.value = false
@@ -25,5 +32,5 @@ export function useForgotPassword() {
 
   const resend = () => { sent.value = false }
 
-  return { email, error, sent, submitting, submit, resend }
+  return { email, error, formError, sent, submitting, submit, resend }
 }

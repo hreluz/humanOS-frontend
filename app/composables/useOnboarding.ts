@@ -1,13 +1,11 @@
 import type { UserProfile } from '~/types/auth'
 
 export function useOnboarding() {
-  const draft = useSignupDraft()
-  const { completeOnboarding } = useAuth()
+  const { firstName, saveProfile } = useAuth()
   const step = ref<0 | 1>(0)
   const submitting = ref(false)
   const profile = reactive<UserProfile>({ goal: 'lose', age: '', height: '', weight: '', target: '', activity: 'Moderate' })
 
-  const firstName = computed(() => draft.value?.name.split(' ')[0] ?? '')
   const needsTarget = computed(() => goalNeedsTarget(profile.goal))
   const statsValid = computed(() =>
     +profile.age > 0 && +profile.height > 0 && +profile.weight > 0 && (!needsTarget.value || +profile.target > 0),
@@ -19,11 +17,10 @@ export function useOnboarding() {
       step.value = 1
       return
     }
-    if (!statsValid.value || !draft.value) return
+    if (!statsValid.value) return
     submitting.value = true
     try {
-      await completeOnboarding(draft.value, { ...profile })
-      draft.value = null
+      await saveProfile({ ...profile })
       await navigateTo('/')
     }
     finally {

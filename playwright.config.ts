@@ -21,7 +21,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'pnpm build && node .output/server/index.mjs',
-    env: { PORT: String(PORT) },
+    env: { PORT: String(PORT), NUXT_PUBLIC_API_BASE: process.env.E2E_API_BASE ?? 'http://localhost:8000/api' },
     url: `${baseURL}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
