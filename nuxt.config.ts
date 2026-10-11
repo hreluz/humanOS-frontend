@@ -8,6 +8,10 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
+  runtimeConfig: {
+    // Overridable via NUXT_PUBLIC_API_BASE.
+    public: { apiBase: 'http://localhost:8000/api' },
+  },
   vite: {
     plugins: [tailwindcss()],
   },

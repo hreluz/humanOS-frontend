@@ -5,14 +5,14 @@ const { user, userName, initial, goalLabel, signOut } = useAuth()
 const { targets } = useFoodLog()
 
 const about = computed(() => {
-  const u = user.value
-  if (!u) return []
+  const p = user.value?.profile
+  if (!p) return []
   return [
     ['Goal', goalLabel.value],
-    ['Weight', u.weight ? u.weight + ' kg' : '—'],
-    ...(u.target && goalNeedsTarget(u.goal) ? [['Target weight', u.target + ' kg']] : []),
-    ['Height', u.height ? u.height + ' cm' : '—'],
-    ['Activity', u.activity || '—'],
+    ['Weight', p.weight ? p.weight + ' kg' : '—'],
+    ...(p.target && goalNeedsTarget(p.goal) ? [['Target weight', p.target + ' kg']] : []),
+    ['Height', p.height ? p.height + ' cm' : '—'],
+    ['Activity', p.activity || '—'],
   ]
 })
 </script>

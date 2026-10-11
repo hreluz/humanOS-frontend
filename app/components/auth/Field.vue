@@ -6,6 +6,7 @@ withDefaults(defineProps<{
   error?: string
   suffix?: string
   autocomplete?: string
+  readonly?: boolean
 }>(), { type: 'text' })
 
 const model = defineModel<string>({ required: true })
@@ -25,6 +26,7 @@ const id = useId()
         :type="type"
         :placeholder="placeholder"
         :autocomplete="autocomplete"
+        :readonly="readonly"
         :aria-invalid="!!error"
         :aria-describedby="error ? `${id}-error` : undefined"
         @input="model = ($event.target as HTMLInputElement).value"

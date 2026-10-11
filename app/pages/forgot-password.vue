@@ -2,7 +2,7 @@
 definePageMeta({ layout: 'auth' })
 useHead({ title: 'Reset your password · HumanOS' })
 
-const { email, error, sent, submitting, submit, resend } = useForgotPassword()
+const { email, error, formError, sent, submitting, submit, resend } = useForgotPassword()
 const linkCls = 'font-semibold text-[#0B0B0C] dark:text-white underline underline-offset-2'
 </script>
 
@@ -10,6 +10,7 @@ const linkCls = 'font-semibold text-[#0B0B0C] dark:text-white underline underlin
   <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
     <template v-if="!sent">
       <AuthHeading title="Reset your password" subtitle="We'll email you a link to set a new one." />
+      <AuthNotice v-if="formError" tone="error">{{ formError }}</AuthNotice>
       <AuthField v-model="email" label="Email" type="email" placeholder="you@example.com" :error="error" autocomplete="email" />
       <AuthPrimaryButton :disabled="submitting">Send reset link</AuthPrimaryButton>
     </template>
