@@ -24,7 +24,7 @@ async function onSave() {
         <div class="flex items-center gap-3">
           <button type="button" aria-label="Fewer servings" class="w-6 h-6 rounded-full shadow-sm flex items-center justify-center text-[15px]" :class="[cardCls, inkCls]" @click="changeServings(-1)">–</button>
           <span class="text-[15px] font-semibold" :class="inkCls">{{ recipe.servings }} servings</span>
-          <button type="button" aria-label="More servings" class="w-6 h-6 rounded-full bg-[#0B0B0C] flex items-center justify-center text-[15px] text-white" @click="changeServings(1)">+</button>
+          <button type="button" aria-label="More servings" class="w-6 h-6 rounded-full bg-ink flex items-center justify-center text-[15px] text-white" @click="changeServings(1)">+</button>
         </div>
       </div>
       <div class="text-xs font-bold tracking-wide uppercase mb-2.5" :class="inkFaintCls">Ingredients</div>
@@ -37,13 +37,13 @@ async function onSave() {
           <button type="button" :aria-label="`Remove ${ing.name}`" class="w-6 h-6 rounded-full flex items-center justify-center text-[15px]" :class="[cardCls, inkFaintCls]" @click="removeIngredient(idx)">×</button>
         </div>
       </div>
-      <button type="button" class="w-full border-[1.5px] border-dashed border-[#2F6FED]/40 rounded-xl px-3.5 py-2.5 flex items-center justify-center gap-2 text-[13.5px] font-semibold mb-[18px]" :class="linkBlueCls" @click="togglePicker">+ Add ingredient</button>
+      <button type="button" class="w-full border-[1.5px] border-dashed border-accent-blue/40 rounded-xl px-3.5 py-2.5 flex items-center justify-center gap-2 text-[13.5px] font-semibold mb-[18px]" :class="linkBlueCls" @click="togglePicker">+ Add ingredient</button>
       <div class="text-xs font-bold tracking-wide uppercase mb-2.5" :class="inkFaintCls">Per serving</div>
-      <div class="bg-[#0B0B0C] rounded-2xl p-4 flex flex-col gap-2.5 mb-4">
+      <div class="bg-ink rounded-2xl p-4 flex flex-col gap-2.5 mb-4">
         <div class="flex justify-between items-baseline"><span class="text-[13px] text-white/60">Calories</span><span class="text-lg font-bold text-white">{{ perServing.kcal }} kcal</span></div>
         <div class="flex justify-between"><span class="text-[13px] text-white/60">Protein</span><span class="text-[13.5px] font-semibold text-white">{{ perServing.p }}g</span></div>
       </div>
-      <button type="button" class="w-full h-[46px] rounded-full bg-[#0B0B0C] text-white flex items-center justify-center text-[14.5px] font-semibold" @click="onSave">Save recipe</button>
+      <button type="button" class="w-full h-[46px] rounded-full bg-ink text-white flex items-center justify-center text-[14.5px] font-semibold" @click="onSave">Save recipe</button>
 
       <div v-if="showPicker" class="absolute inset-0 p-5 flex flex-col gap-2 overflow-auto" :class="cardCls">
         <div class="flex justify-between items-center mb-1">

@@ -18,7 +18,7 @@ const { templates, selected, formattedTarget, label, creating, select, reset, ch
         </div>
       </div>
       <div class="rounded-2xl px-4 py-3.5 mb-5 text-center text-[14.5px]" :class="[bgCls, inkSoftCls]">"{{ label }}"</div>
-      <button type="button" :disabled="creating" class="w-full h-[50px] rounded-full bg-[#0B0B0C] text-white flex items-center justify-center text-[15px] font-semibold disabled:opacity-60" @click="create">Create goal</button>
+      <button type="button" :disabled="creating" class="w-full h-[50px] rounded-full bg-ink text-white flex items-center justify-center text-[15px] font-semibold disabled:opacity-60" @click="create">Create goal</button>
     </template>
     <template v-else>
       <div class="text-[15px] mb-4" :class="inkSoftCls">What do you want to track?</div>

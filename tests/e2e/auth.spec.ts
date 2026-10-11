@@ -85,9 +85,7 @@ test('reset link without a token shows the invalid-link state', async ({ page })
 })
 
 test.describe('auth flows against the API', () => {
-  test.beforeEach(({}, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', 'Runs once per run to stay under the backend throttles')
-  })
+  test.skip(({ isMobile }) => isMobile, 'Runs on desktop only, to stay under the backend throttles')
 
   test('signup → onboarding → home', async ({ page }) => {
     await gotoReady(page, '/signup')

@@ -61,7 +61,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     </div>
 
     <div class="flex flex-col gap-4">
-      <button type="button" class="bg-[#0B0B0C] rounded-2xl p-[22px] text-left" @click="open('coach')">
+      <button type="button" class="bg-ink rounded-2xl p-[22px] text-left" @click="open('coach')">
         <div class="flex gap-3 items-center mb-2.5">
           <div class="w-9 h-9 rounded-[11px] bg-white/10 flex items-center justify-center shrink-0">
             <AppIcon :path="ICONS.coach" class="w-[17px] h-[17px] text-white" />

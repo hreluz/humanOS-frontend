@@ -14,7 +14,7 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
         <div class="flex gap-2">
           <button type="button" :class="btnCls" @click="open('recipe')">New recipe</button>
           <button type="button" :class="btnCls" @click="open('planner')">Meal planner</button>
-          <button type="button" class="px-3.5 py-2 rounded-[10px] bg-[#0B0B0C] text-[13px] font-semibold text-white" @click="open('foodSearch')">+ Log food</button>
+          <button type="button" class="px-3.5 py-2 rounded-[10px] bg-ink text-[13px] font-semibold text-white" @click="open('foodSearch')">+ Log food</button>
         </div>
       </div>
 

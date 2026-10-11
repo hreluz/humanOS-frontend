@@ -3,7 +3,6 @@ definePageMeta({ layout: 'auth' })
 useHead({ title: 'Sign in · HumanOS' })
 
 const { form, errors, formError, passwordReset, showPassword, submitting, submit } = useLoginForm()
-const linkCls = 'font-semibold text-[#0B0B0C] dark:text-white underline underline-offset-2'
 </script>
 
 <template>
@@ -18,11 +17,11 @@ const linkCls = 'font-semibold text-[#0B0B0C] dark:text-white underline underlin
           <AuthPasswordToggle v-model="showPassword" />
         </template>
       </AuthField>
-      <NuxtLink to="/forgot-password" class="self-end text-[12.5px] font-semibold hover:text-[#0B0B0C] dark:hover:text-white" :class="inkSoftCls">Forgot password?</NuxtLink>
+      <NuxtLink to="/forgot-password" class="self-end text-[12.5px] font-semibold hover:text-ink dark:hover:text-white" :class="inkSoftCls">Forgot password?</NuxtLink>
     </div>
     <AuthPrimaryButton :disabled="submitting">Sign in</AuthPrimaryButton>
     <p class="text-[13.5px] text-center" :class="inkSoftCls">
-      New to HumanOS? <NuxtLink to="/signup" :class="linkCls">Create an account</NuxtLink>
+      New to HumanOS? <NuxtLink to="/signup" :class="authLinkCls">Create an account</NuxtLink>
     </p>
   </form>
 </template>

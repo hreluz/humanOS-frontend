@@ -3,7 +3,6 @@ definePageMeta({ layout: 'auth' })
 useHead({ title: 'Create your account · HumanOS' })
 
 const { form, errors, formError, showPassword, submitting, submit } = useSignupForm()
-const linkCls = 'font-semibold text-[#0B0B0C] dark:text-white underline underline-offset-2'
 </script>
 
 <template>
@@ -20,7 +19,7 @@ const linkCls = 'font-semibold text-[#0B0B0C] dark:text-white underline underlin
     <AuthField v-model="form.confirm" label="Confirm password" :type="showPassword ? 'text' : 'password'" :error="errors.confirm" autocomplete="new-password" />
     <AuthPrimaryButton :disabled="submitting">Continue</AuthPrimaryButton>
     <p class="text-[13.5px] text-center" :class="inkSoftCls">
-      Already have an account? <NuxtLink to="/login" :class="linkCls">Sign in</NuxtLink>
+      Already have an account? <NuxtLink to="/login" :class="authLinkCls">Sign in</NuxtLink>
     </p>
   </form>
 </template>

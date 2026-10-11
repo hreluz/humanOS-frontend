@@ -7,35 +7,25 @@ export function useResetPassword() {
   const email = typeof route.query.email === 'string' ? route.query.email : ''
   const validLink = !!token && !!email
 
-  const form = reactive({ password: '', confirm: '' })
-  const errors = reactive<{ email?: string, password?: string, confirm?: string }>({})
-  const formError = ref<string>()
+  // An invalid or expired token comes back as an error on `email`, which is shown under the read-only email field.
+  const { form, errors, formError, submitting, submit: submitForm } = useForm<{ password: string, confirm: string }, 'email'>(
+    { password: '', confirm: '' },
+    { password_confirmation: 'confirm', token: 'email' },
+  )
   const showPassword = ref(false)
-  const submitting = ref(false)
-
-  watch(() => form.password, () => { errors.password = undefined })
-  watch(() => form.confirm, () => { errors.confirm = undefined })
 
   async function submit() {
-    errors.password = form.password.length >= 8 ? undefined : 'At least 8 characters'
-    errors.confirm = form.confirm === form.password ? undefined : 'Passwords don\'t match'
-    errors.email = undefined
-    formError.value = undefined
-    if (!validLink || errors.password || errors.confirm) return
-    submitting.value = true
-    try {
-      await authService.resetPassword({ token, email, password: form.password, passwordConfirmation: form.confirm })
-      await navigateTo('/login?reset=1')
-    }
-    catch (err) {
-      // An invalid or expired token comes back as an error on `email`.
-      const fields = toFieldErrors(err, { password_confirmation: 'confirm' })
-      if (fields) Object.assign(errors, { email: fields.email ?? fields.token, password: fields.password, confirm: fields.confirm })
-      else formError.value = toFormMessage(err)
-    }
-    finally {
-      submitting.value = false
-    }
+    if (!validLink) return
+    await submitForm(
+      () => ({
+        password: form.password.length >= 8 ? undefined : 'At least 8 characters',
+        confirm: form.confirm === form.password ? undefined : 'Passwords don\'t match',
+      }),
+      async () => {
+        await authService.resetPassword({ token, email, password: form.password, passwordConfirmation: form.confirm })
+        await navigateTo('/login?reset=1')
+      },
+    )
   }
 
   return { email, validLink, form, errors, formError, showPassword, submitting, submit }

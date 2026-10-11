@@ -33,7 +33,7 @@ async function add(item: FoodItem) {
         :key="t.key"
         type="button"
         class="px-3 py-1.5 rounded-[10px] text-[12.5px] font-semibold"
-        :class="tab === t.key ? 'bg-[#0B0B0C] text-white dark:bg-white dark:text-black' : inkSoftCls"
+        :class="tab === t.key ? 'bg-ink text-white dark:bg-white dark:text-black' : inkSoftCls"
         @click="tab = t.key"
       >
         {{ t.label }}
@@ -49,7 +49,7 @@ async function add(item: FoodItem) {
         <button
           type="button"
           :aria-label="`Add ${food.name}`"
-          class="w-7 h-7 rounded-full bg-[#0B0B0C] text-white flex items-center justify-center text-base shrink-0"
+          class="w-7 h-7 rounded-full bg-ink text-white flex items-center justify-center text-base shrink-0"
           @click="add(food)"
         >
           +
