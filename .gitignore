@@ -28,3 +28,10 @@ logs
 !.playwright-screenshots/.gitkeep
 test-results/
 playwright-report/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Agent skills (restore with: npx skills experimental_install)
+.agents/
+.claude/skills/
