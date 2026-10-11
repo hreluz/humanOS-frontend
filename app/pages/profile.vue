@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ tab: 'profile' })
 
-const { user, userName, initial, goalLabel, signOut } = useAuth()
+const { user, userName, initial, goalLabel, signOut, signingOut } = useAuth()
 const { targets } = useFoodLog()
 
 const about = computed(() => {
@@ -38,6 +38,6 @@ const about = computed(() => {
       <div class="flex justify-between px-[18px] py-3.5 border-b" :class="dividerCls"><span class="text-[14.5px]" :class="inkSoftCls">Calories</span><span class="text-[14.5px] font-semibold" :class="inkCls">{{ targets.kcal.toLocaleString('en-US') }} kcal</span></div>
       <div class="flex justify-between px-[18px] py-3.5"><span class="text-[14.5px]" :class="inkSoftCls">Protein</span><span class="text-[14.5px] font-semibold" :class="inkCls">{{ targets.protein }} g</span></div>
     </div>
-    <button type="button" class="mt-6 w-full h-11 rounded-full shadow-xs text-[14.5px] font-semibold text-accent-coral dark:text-accent-coral-dark hover:opacity-80" :class="cardCls" @click="signOut">Sign out</button>
+    <button type="button" class="mt-6 w-full h-11 rounded-full shadow-xs text-[14.5px] font-semibold text-accent-coral dark:text-accent-coral-dark hover:opacity-80 disabled:opacity-60 disabled:hover:opacity-60" :class="cardCls" :disabled="signingOut" @click="signOut">{{ signingOut ? 'Signing out…' : 'Sign out' }}</button>
   </div>
 </template>

@@ -5,6 +5,8 @@ export function useLoginForm() {
   const showPassword = ref(false)
   // Set by /reset-password after a successful reset.
   const passwordReset = computed(() => route.query.reset === '1')
+  // Set by signOut.
+  const signedOut = computed(() => route.query.signedOut === '1')
 
   const submit = () => submitForm(
     () => ({
@@ -18,5 +20,5 @@ export function useLoginForm() {
     },
   )
 
-  return { form, errors, formError, passwordReset, showPassword, submitting, submit }
+  return { form, errors, formError, passwordReset, signedOut, showPassword, submitting, submit }
 }

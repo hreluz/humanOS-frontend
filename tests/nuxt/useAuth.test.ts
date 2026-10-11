@@ -81,9 +81,13 @@ describe('useAuth', () => {
     await expect(useAuth().fetchMe()).rejects.toEqual({ statusCode: 500 })
   })
 
-  it('signOut ignores a 401, clears the session and goes to /login', async () => {
+  it.each([
+    ['a 401', unauthorized],
+    ['a server error', { statusCode: 500 }],
+    ['a network error', new TypeError('fetch failed')],
+  ])('signOut still signs out locally on %s', async (_, failure) => {
     vi.mocked(authService.login).mockResolvedValue({ token: '1|abc', user: ana })
-    vi.mocked(authService.logout).mockRejectedValue(unauthorized)
+    vi.mocked(authService.logout).mockRejectedValue(failure)
     const auth = useAuth()
     await auth.login(ana.email, 'secret-123')
 
@@ -91,6 +95,21 @@ describe('useAuth', () => {
 
     expect(auth.isAuthenticated.value).toBe(false)
     expect(auth.hasToken.value).toBe(false)
-    expect(navigateToMock).toHaveBeenCalledWith('/login')
+    expect(auth.signingOut.value).toBe(false)
+    expect(navigateToMock).toHaveBeenCalledWith({ path: '/login', query: { signedOut: '1' } })
+  })
+
+  it('signOut sends one request when called twice', async () => {
+    vi.mocked(authService.login).mockResolvedValue({ token: '1|abc', user: ana })
+    vi.mocked(authService.logout).mockResolvedValue()
+    const auth = useAuth()
+    await auth.login(ana.email, 'secret-123')
+
+    const first = auth.signOut()
+    expect(auth.signingOut.value).toBe(true)
+    await auth.signOut()
+    await first
+
+    expect(authService.logout).toHaveBeenCalledTimes(1)
   })
 })

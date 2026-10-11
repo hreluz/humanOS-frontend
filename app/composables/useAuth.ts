@@ -15,6 +15,7 @@ export function useAuth() {
   const token = useCookie<string | null>(TOKEN_COOKIE, TOKEN_OPTS)
   const storedProfile = useCookie<StoredProfile | null>('humanos_profile', PROFILE_OPTS)
   const account = useState<AuthUser | null>('auth-user', () => null)
+  const signingOut = useState('auth-signing-out', () => false)
 
   // A profile saved by another account on this browser is ignored.
   const profile = computed(() =>
@@ -65,19 +66,26 @@ export function useAuth() {
   }
 
   async function signOut() {
+    if (signingOut.value) return
+    signingOut.value = true
     try {
-      await authService.logout()
+      try {
+        await authService.logout()
+      }
+      catch {
+        // A failed revoke (offline, 5xx, already-expired token) still signs out on this browser.
+      }
+      clearSession()
+      await navigateTo({ path: '/login', query: { signedOut: '1' } })
+      clearNuxtState(key => !['auth-user', 'auth-signing-out', 'theme-preference'].includes(key))
     }
-    catch (err) {
-      if (apiStatus(err) !== 401) throw err
+    finally {
+      signingOut.value = false
     }
-    clearSession()
-    await navigateTo('/login')
-    clearNuxtState(key => key !== 'auth-user' && key !== 'theme-preference')
   }
 
   return {
-    user, hasToken, isAuthenticated, hasProfile, userName, firstName, initial, goalLabel,
+    user, hasToken, isAuthenticated, hasProfile, signingOut, userName, firstName, initial, goalLabel,
     login, register, fetchMe, saveProfile, signOut,
   }
 }

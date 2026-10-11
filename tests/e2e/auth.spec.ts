@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { E2E_PASSWORD, latestResetLink, registerUser, sharedUser, uniqueEmail } from './api'
-import { THEMES, gotoReady, setProfile, setTheme, shot } from './helpers'
+import { THEMES, gotoReady, setProfile, setTheme, shot, signIn } from './helpers'
 
 // The backend throttles register / forgot / reset to 6 per minute per IP. Screenshot tests below make
 // at most one throttled call each; the API flows further down run once per run (desktop project only).
@@ -42,6 +42,21 @@ for (const theme of THEMES) {
       await page.getByRole('button', { name: 'Send reset link' }).click()
       await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
       await shot(page, testInfo, 'forgot-password-sent', theme)
+    })
+
+    test('signed out', async ({ page }, testInfo) => {
+      await gotoReady(page, '/login?signedOut=1')
+      await expect(page.getByText('You\'ve signed out.')).toBeVisible()
+      await shot(page, testInfo, 'login-signed-out', theme)
+    })
+
+    test('account menu', async ({ page, context, baseURL, isMobile }, testInfo) => {
+      test.skip(isMobile, 'The sidebar is desktop only')
+      await signIn(context, baseURL!)
+      await gotoReady(page, '/')
+      await page.getByRole('button', { name: /Alex/ }).click()
+      await expect(page.getByRole('menu', { name: 'Account' })).toBeVisible()
+      await shot(page, testInfo, 'account-menu', theme)
     })
 
     test('reset password', async ({ page }, testInfo) => {
@@ -146,10 +161,43 @@ test.describe('auth flows against the API', () => {
     const logout = page.waitForRequest(req => req.method() === 'POST' && req.url().endsWith('/v1/auth/logout'))
     await page.getByRole('button', { name: 'Sign out' }).click()
     await logout
-    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveURL(/\/login\?signedOut=1$/)
+    await expect(page.getByText('You\'ve signed out.')).toBeVisible()
     expect((await context.cookies()).some(c => c.name === 'humanos_token')).toBe(false)
     await gotoReady(page, '/')
     await expect(page).toHaveURL(/\/login$/)
+  })
+
+  test('sign out from the sidebar account menu', async ({ page, context, baseURL }) => {
+    // Stubbed so the shared token isn't revoked; the test above covers the real request.
+    await signIn(context, baseURL!)
+    await page.route('**/v1/auth/logout', route => route.fulfill({ status: 204 }))
+    await gotoReady(page, '/')
+
+    const account = page.getByRole('button', { name: /Alex/ })
+    await account.click()
+    await expect(account).toHaveAttribute('aria-expanded', 'true')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('menu', { name: 'Account' })).toBeHidden()
+    await expect(account).toBeFocused()
+
+    await account.click()
+    const logout = page.waitForRequest(req => req.method() === 'POST' && req.url().endsWith('/v1/auth/logout'))
+    await page.getByRole('menuitem', { name: 'Sign out' }).click()
+    await logout
+    await expect(page).toHaveURL(/\/login\?signedOut=1$/)
+    await expect(page.getByText('You\'ve signed out.')).toBeVisible()
+    expect((await context.cookies()).some(c => c.name === 'humanos_token')).toBe(false)
+  })
+
+  test('sign out still signs out locally when the request fails', async ({ page, context, baseURL }) => {
+    // The request never reaches the API, so the shared token stays valid for other tests.
+    await signIn(context, baseURL!)
+    await page.route('**/v1/auth/logout', route => route.abort())
+    await gotoReady(page, '/profile')
+    await page.getByRole('button', { name: 'Sign out' }).click()
+    await expect(page).toHaveURL(/\/login\?signedOut=1$/)
+    expect((await context.cookies()).some(c => c.name === 'humanos_token')).toBe(false)
   })
 
   test('forgot password → email link → new password → sign in', async ({ page, context, baseURL }) => {
