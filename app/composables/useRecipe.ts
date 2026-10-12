@@ -38,11 +38,13 @@ export function useRecipe() {
     pickerMode.value = 'create'
   }
 
+  const totals = computed(() => (recipe.value?.ingredients ?? [])
+    .reduce((a, i) => ({ kcal: a.kcal + i.kcal, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { kcal: 0, p: 0, c: 0, f: 0 }))
+
   const perServing = computed(() => {
-    if (!recipe.value) return { kcal: 0, p: 0, c: 0, f: 0 }
-    const { servings, ingredients } = recipe.value
-    const sum = ingredients.reduce((a, i) => ({ kcal: a.kcal + i.kcal, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { kcal: 0, p: 0, c: 0, f: 0 })
-    return { kcal: Math.round(sum.kcal / servings), p: Math.round(sum.p / servings), c: Math.round(sum.c / servings), f: Math.round(sum.f / servings) }
+    const servings = recipe.value?.servings ?? 1
+    const { kcal, p, c, f } = totals.value
+    return { kcal: Math.round(kcal / servings), p: Math.round(p / servings), c: Math.round(c / servings), f: Math.round(f / servings) }
   })
 
   async function save() {
@@ -57,7 +59,7 @@ export function useRecipe() {
   }
 
   return {
-    recipe, catalog, filteredCatalog, query, showPicker, pickerMode, saving, perServing,
+    recipe, catalog, filteredCatalog, query, showPicker, pickerMode, saving, totals, perServing,
     togglePicker, changeServings, addIngredient, removeIngredient, startCreate, save,
   }
 }

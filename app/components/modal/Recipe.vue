@@ -1,9 +1,17 @@
 <script setup lang="ts">
 const { close } = useModal()
 const {
-  recipe, filteredCatalog, query, showPicker, pickerMode, perServing,
+  recipe, filteredCatalog, query, showPicker, pickerMode, totals, perServing,
   togglePicker, changeServings, addIngredient, removeIngredient, startCreate, save,
 } = useRecipe()
+
+const ingredientsOpen = ref(false)
+const ingredientsId = useId()
+const ingredientCount = computed(() => recipe.value?.ingredients.length ?? 0)
+const ingredientNames = computed(() => recipe.value?.ingredients.map(i => i.name).join(' | ') || 'No ingredients yet')
+
+// Re-open the list after adding so the new ingredient is visible (not when the draft first loads).
+watch(() => recipe.value?.ingredients.length, (n, prev) => { if (prev !== undefined && n! > prev) ingredientsOpen.value = true })
 
 const searchInput = ref<HTMLInputElement>()
 const focusSearch = () => nextTick(() => searchInput.value?.focus())
@@ -47,8 +55,22 @@ async function onSave() {
           <button type="button" aria-label="More servings" class="w-6 h-6 rounded-full bg-ink flex items-center justify-center text-[15px] text-white" @click="changeServings(1)">+</button>
         </div>
       </div>
-      <div class="text-xs font-bold tracking-wide uppercase mb-2.5" :class="inkFaintCls">Ingredients</div>
-      <div class="flex flex-col gap-2 mb-3.5">
+      <button
+        type="button"
+        :aria-expanded="ingredientsOpen"
+        :aria-controls="ingredientsId"
+        class="w-full min-h-11 -mt-2 mb-1 rounded flex items-center justify-between gap-3 text-left"
+        :class="focusRingCls"
+        @click="ingredientsOpen = !ingredientsOpen"
+      >
+        <span class="text-xs font-bold tracking-wide uppercase" :class="inkFaintCls">Ingredients</span>
+        <span class="flex items-center gap-1.5 text-xs tabular-nums" :class="inkFaintCls">
+          {{ ingredientCount }} {{ ingredientCount === 1 ? 'item' : 'items' }} · {{ Math.round(totals.kcal) }} kcal
+          <AppIcon :path="ICONS.chevronUp" class="w-3.5 h-3.5 transition-transform motion-reduce:transition-none" :class="[inkSoftCls, ingredientsOpen ? '' : 'rotate-180']" />
+        </span>
+      </button>
+      <p v-if="!ingredientsOpen" class="rounded-xl px-3.5 py-2.5 mb-3.5 text-[13px] leading-snug line-clamp-2" :class="[bgCls, inkSoftCls]">{{ ingredientNames }}</p>
+      <div v-else :id="ingredientsId" class="flex flex-col gap-2 mb-3.5">
         <div v-for="(ing, idx) in recipe.ingredients" :key="idx" class="rounded-xl px-3.5 py-2.5 flex items-center gap-3" :class="bgCls">
           <div class="flex-1">
             <div class="text-sm font-semibold" :class="inkCls">{{ ing.name }}</div>

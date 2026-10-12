@@ -129,6 +129,7 @@ test.describe('interactions', () => {
     await page.getByRole('button', { name: 'New recipe' }).click()
     await page.getByRole('button', { name: 'More servings' }).click()
     await expect(page.getByText('3 servings')).toBeVisible()
+    await page.getByRole('dialog').getByRole('button', { name: /^Ingredients/ }).click()
     await page.getByRole('button', { name: 'Remove Olive oil' }).click()
     await expect(page.getByText('240 kcal kcal')).toHaveCount(0)
     await page.getByRole('button', { name: 'Save recipe' }).click()
@@ -137,6 +138,28 @@ test.describe('interactions', () => {
     await page.getByRole('button', { name: '+ Log food' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
     await expect(page.getByRole('dialog').getByText('Chicken & Rice Bowl', { exact: true })).toBeVisible()
+  })
+
+  test('ingredient list starts collapsed with a summary and re-opens on add', async ({ page }) => {
+    await gotoReady(page, '/food')
+    await page.getByRole('button', { name: 'New recipe' }).click()
+    const dialog = page.getByRole('dialog')
+    const toggle = dialog.getByRole('button', { name: /^Ingredients/ })
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(toggle).toContainText('3 items · 960 kcal')
+    await expect(dialog.getByText('Chicken breast, grilled | Jasmine rice, cooked | Olive oil')).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Remove Olive oil' })).toHaveCount(0)
+
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(dialog.getByRole('button', { name: 'Remove Olive oil' })).toBeVisible()
+    await toggle.click()
+
+    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
+    await dialog.getByRole('button', { name: /^Whey protein/ }).click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(toggle).toContainText('4 items')
+    await expect(dialog.getByText('Whey protein', { exact: true })).toBeVisible()
   })
 
   test('custom ingredient is added to the recipe and saved to My Foods', async ({ page }) => {
