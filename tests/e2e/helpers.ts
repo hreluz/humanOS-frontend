@@ -5,10 +5,6 @@ import { type TestUser, sharedUser } from './api'
 export type Theme = 'light' | 'dark'
 export const THEMES: Theme[] = ['light', 'dark']
 
-export const DEMO_PROFILE = {
-  goal: 'lose', weight: '82.1', target: '76', height: '180', age: '32', activity: 'Moderate',
-}
-
 function cookie(name: string, value: string, baseURL: string) {
   return { name, value, url: baseURL }
 }
@@ -18,17 +14,17 @@ export async function setTheme(context: BrowserContext, theme: Theme, baseURL: s
 }
 
 /**
- * Signs in by setting the token + onboarding profile cookies the app reads (same encoding as Nuxt's useCookie).
- * Defaults to the user registered in global setup.
+ * Signs in by setting the token + goal cookies the app reads (same encoding as Nuxt's useCookie).
+ * The profile comes from the API. Defaults to the user registered in global setup.
  */
 export async function signIn(context: BrowserContext, baseURL: string, user: TestUser = sharedUser()) {
   await context.addCookies([cookie('humanos_token', encodeURIComponent(user.token), baseURL)])
-  await setProfile(context, baseURL, user)
+  await setGoal(context, baseURL, user)
 }
 
-/** Marks onboarding as done for `user` on this browser, so signing in lands on home. */
-export async function setProfile(context: BrowserContext, baseURL: string, user: TestUser = sharedUser()) {
-  await context.addCookies([cookie('humanos_profile', encodeURIComponent(JSON.stringify({ userId: user.id, profile: DEMO_PROFILE })), baseURL)])
+/** Picks the goal for `user` on this browser (the backend has none), so a user with an API profile lands on home. */
+export async function setGoal(context: BrowserContext, baseURL: string, user: TestUser = sharedUser(), goal = 'lose') {
+  await context.addCookies([cookie('humanos_goal', encodeURIComponent(JSON.stringify({ userId: user.id, goal })), baseURL)])
 }
 
 export async function gotoReady(page: Page, path: string) {

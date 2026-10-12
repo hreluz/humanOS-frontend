@@ -11,8 +11,6 @@ export interface PeriodStats {
 
 export interface WeeklyReview {
   range: string
-  weightDelta: string
-  trendPoints: string
   recommendation: string
   avgCalories: string
   proteinHit: string

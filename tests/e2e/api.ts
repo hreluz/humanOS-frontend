@@ -17,24 +17,42 @@ export function uniqueEmail(tag: string) {
   return `e2e+${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
 }
 
+/** PUT /v1/profile body (snake_case, as the API reads it). */
+export interface ProfileBody {
+  unit_system: 'metric' | 'imperial'
+  birth_date: string
+  sex: 'male' | 'female'
+  height: number
+  weight: number
+  target_weight: number
+  activity_level: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active'
+}
+
+/** The shared user's profile (goal `lose` is set per browser by helpers.signIn). */
+export const METRIC_PROFILE: ProfileBody = {
+  unit_system: 'metric', birth_date: '1994-04-15', sex: 'male', height: 180, weight: 82.1, target_weight: 76, activity_level: 'moderately_active',
+}
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-/** POST JSON to the API, waiting out a 429 (per-IP throttle) once using Retry-After. */
-async function post<T>(path: string, body: Record<string, unknown>): Promise<T> {
+/** Sends JSON to the API, waiting out a 429 (per-IP throttle) once using Retry-After. */
+async function send<T>(method: 'POST' | 'PUT', path: string, body: object, token?: string): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`${API_BASE}${path}`, {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      method,
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify(body),
     })
     if (res.status === 429 && attempt === 0) {
       await sleep((Number(res.headers.get('retry-after')) || 60) * 1000)
       continue
     }
-    if (!res.ok) throw new Error(`POST ${path} → ${res.status}: ${await res.text()}`)
+    if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${await res.text()}`)
     return await res.json() as T
   }
 }
+
+const post = <T>(path: string, body: object) => send<T>('POST', path, body)
 
 export async function registerUser(tag: string, name = 'E2E User'): Promise<TestUser> {
   const email = uniqueEmail(tag)
@@ -44,12 +62,30 @@ export async function registerUser(tag: string, name = 'E2E User'): Promise<Test
   return { id: data.user.id, name, email, password: E2E_PASSWORD, token: data.token }
 }
 
-/** The user registered in global setup (shared by signed-in screenshot tests). */
-export function sharedUser(): TestUser {
-  const { E2E_USER_ID, E2E_USER_NAME, E2E_USER_EMAIL, E2E_TOKEN } = process.env
-  if (!E2E_USER_ID || !E2E_USER_NAME || !E2E_USER_EMAIL || !E2E_TOKEN) throw new Error('Shared e2e user missing — global setup did not run')
-  return { id: Number(E2E_USER_ID), name: E2E_USER_NAME, email: E2E_USER_EMAIL, password: E2E_PASSWORD, token: E2E_TOKEN }
+/** Saves `user`'s profile through the API (PUT /v1/profile), as onboarding would. */
+export async function saveProfile(user: TestUser, body: ProfileBody) {
+  await send('PUT', '/v1/profile', body, user.token)
 }
+
+/** Passes a user registered in global setup to the workers through env vars. */
+export function exportUser(prefix: string, user: TestUser) {
+  process.env[`${prefix}_ID`] = String(user.id)
+  process.env[`${prefix}_NAME`] = user.name
+  process.env[`${prefix}_EMAIL`] = user.email
+  process.env[`${prefix}_TOKEN`] = user.token
+}
+
+function importUser(prefix: string): TestUser {
+  const [id, name, email, token] = ['ID', 'NAME', 'EMAIL', 'TOKEN'].map(k => process.env[`${prefix}_${k}`])
+  if (!id || !name || !email || !token) throw new Error(`${prefix} e2e user missing — global setup did not run`)
+  return { id: Number(id), name, email, password: E2E_PASSWORD, token }
+}
+
+/** The user registered in global setup with METRIC_PROFILE (shared by signed-in screenshot tests). Never mutate its profile. */
+export const sharedUser = () => importUser('E2E_USER')
+
+/** A user registered in global setup without a profile, for onboarding screens. Never complete onboarding with it. */
+export const newUser = () => importUser('E2E_NEW_USER')
 
 /**
  * Path + query of the latest password reset link mailed to `email` (e.g. `/reset-password?token=…&email=…`).

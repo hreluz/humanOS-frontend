@@ -1,44 +1,56 @@
-import type { AuthSession, AuthUser, RegisterPayload, User, UserProfile } from '~/types/auth'
+import type { AuthSession, AuthUser, GoalKey, RegisterPayload, User } from '~/types/auth'
+import type { Profile, ProfilePayload } from '~/types/profile'
 import * as authService from '~/services/authService'
+import * as profileService from '~/services/profileService'
 import { TOKEN_COOKIE } from '~/services/api'
 
-interface StoredProfile {
+// The backend has no goal yet, so it stays on this browser, scoped to the account that picked it.
+interface StoredGoal {
   userId: number
-  profile: UserProfile
+  goal: GoalKey
 }
 
 const DAY = 60 * 60 * 24
 const TOKEN_OPTS = { default: (): string | null => null, sameSite: 'lax' as const, maxAge: DAY * 30 }
-const PROFILE_OPTS = { default: (): StoredProfile | null => null, sameSite: 'lax' as const, maxAge: DAY * 365 }
+const GOAL_OPTS = { default: (): StoredGoal | null => null, sameSite: 'lax' as const, maxAge: DAY * 365 }
 
 export function useAuth() {
   const token = useCookie<string | null>(TOKEN_COOKIE, TOKEN_OPTS)
-  const storedProfile = useCookie<StoredProfile | null>('humanos_profile', PROFILE_OPTS)
+  // Shared state keeps every caller in sync at once (separate cookie refs only sync asynchronously); the cookie persists it.
+  const goalCookie = useCookie<StoredGoal | null>('humanos_goal', GOAL_OPTS)
+  const storedGoal = useState<StoredGoal | null>('auth-goal', () => goalCookie.value)
+  // undefined = not loaded yet, null = the API has no profile for this account (404).
+  const profileState = useState<Profile | null | undefined>('auth-profile', () => undefined)
   const account = useState<AuthUser | null>('auth-user', () => null)
   const signingOut = useState('auth-signing-out', () => false)
 
-  // A profile saved by another account on this browser is ignored.
-  const profile = computed(() =>
-    account.value && storedProfile.value?.userId === account.value.id ? storedProfile.value.profile : null,
+  const profile = computed(() => profileState.value ?? null)
+  // A goal picked by another account on this browser is ignored.
+  const goal = computed(() =>
+    account.value && storedGoal.value?.userId === account.value.id ? storedGoal.value.goal : null,
   )
-  const user = computed<User | null>(() => account.value && { ...account.value, profile: profile.value })
+  const user = computed<User | null>(() => account.value && { ...account.value, profile: profile.value, goal: goal.value })
 
   const hasToken = computed(() => !!token.value)
   const isAuthenticated = computed(() => !!account.value)
+  const profileLoaded = computed(() => profileState.value !== undefined)
   const hasProfile = computed(() => !!profile.value)
+  const hasGoal = computed(() => !!goal.value)
   const userName = computed(() => user.value?.name || 'You')
   const firstName = computed(() => userName.value.split(' ')[0])
   const initial = computed(() => userName.value[0]!.toUpperCase())
-  const goalLabel = computed(() => goalLabelFor(profile.value?.goal))
+  const goalLabel = computed(() => goalLabelFor(goal.value ?? undefined))
 
   function startSession(session: AuthSession) {
     token.value = session.token
     account.value = session.user
+    profileState.value = undefined
   }
 
   function clearSession() {
     token.value = null
     account.value = null
+    profileState.value = undefined
   }
 
   async function login(email: string, password: string) {
@@ -60,9 +72,19 @@ export function useAuth() {
     }
   }
 
-  async function saveProfile(value: UserProfile) {
+  /** Loads the profile; null when the account has not saved one yet. */
+  async function fetchProfile() {
+    profileState.value = await profileService.getProfile()
+  }
+
+  async function saveProfile(payload: ProfilePayload) {
+    profileState.value = await profileService.saveProfile(payload)
+  }
+
+  function setGoal(value: GoalKey) {
     if (!account.value) return
-    storedProfile.value = { userId: account.value.id, profile: await authService.saveProfile(value) }
+    storedGoal.value = { userId: account.value.id, goal: value }
+    goalCookie.value = storedGoal.value
   }
 
   async function signOut() {
@@ -77,7 +99,9 @@ export function useAuth() {
       }
       clearSession()
       await navigateTo({ path: '/login', query: { signedOut: '1' } })
-      clearNuxtState(key => !['auth-user', 'auth-signing-out', 'theme-preference'].includes(key))
+      // Reset (not delete) so state owned by Nuxt modules (e.g. DevTools' `__nuxt_devtools__`) keeps a valid value;
+      // also drops the loaded profile and weight entries.
+      clearNuxtState(key => !['auth-user', 'auth-signing-out', 'theme-preference'].includes(key), { reset: true })
     }
     finally {
       signingOut.value = false
@@ -85,7 +109,7 @@ export function useAuth() {
   }
 
   return {
-    user, hasToken, isAuthenticated, hasProfile, signingOut, userName, firstName, initial, goalLabel,
-    login, register, fetchMe, saveProfile, signOut,
+    user, profile, goal, hasToken, isAuthenticated, profileLoaded, hasProfile, hasGoal, signingOut, userName, firstName, initial, goalLabel,
+    login, register, fetchMe, fetchProfile, saveProfile, setGoal, signOut,
   }
 }

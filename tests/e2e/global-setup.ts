@@ -1,9 +1,9 @@
 import { mkdirSync } from 'node:fs'
-import { assertServicesUp, registerUser } from './api'
+import { METRIC_PROFILE, assertServicesUp, exportUser, registerUser, saveProfile } from './api'
 import { createScreenshotDir } from './screenshot-dir'
 
 export default async function globalSetup() {
-  // Env set here is inherited by every worker, so the whole run shares one folder and one user.
+  // Env set here is inherited by every worker, so the whole run shares one folder and the same users.
   const dir = createScreenshotDir()
   mkdirSync(dir, { recursive: true })
   process.env.SCREENSHOT_DIR = dir
@@ -11,8 +11,7 @@ export default async function globalSetup() {
 
   await assertServicesUp()
   const user = await registerUser('shared', 'Alex Morgan')
-  process.env.E2E_USER_ID = String(user.id)
-  process.env.E2E_USER_NAME = user.name
-  process.env.E2E_USER_EMAIL = user.email
-  process.env.E2E_TOKEN = user.token
+  await saveProfile(user, METRIC_PROFILE)
+  exportUser('E2E_USER', user)
+  exportUser('E2E_NEW_USER', await registerUser('new', 'Alex Morgan'))
 }

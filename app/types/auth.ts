@@ -1,6 +1,6 @@
-export type GoalKey = 'lose' | 'build' | 'maintain' | 'fitness'
+import type { Profile } from '~/types/profile'
 
-export type ActivityLevel = 'Sedentary' | 'Light' | 'Moderate' | 'Very active'
+export type GoalKey = 'lose' | 'build' | 'maintain' | 'fitness'
 
 export interface OnboardGoal {
   key: GoalKey
@@ -19,19 +19,10 @@ export interface AuthUser {
   createdAt: string | null
 }
 
-// Numeric fields stay strings: they come straight from form inputs.
-export interface UserProfile {
-  goal: GoalKey
-  age: string
-  height: string
-  weight: string
-  target: string
-  activity: ActivityLevel
-}
-
-// What the UI consumes: account + profile (profile is null until onboarding is done).
+// What the UI consumes: account + API profile (null until onboarding is done) + the goal kept on this browser.
 export interface User extends AuthUser {
-  profile: UserProfile | null
+  profile: Profile | null
+  goal: GoalKey | null
 }
 
 export interface AuthSession {

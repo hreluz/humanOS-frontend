@@ -8,8 +8,6 @@ export const STATS: Record<StatsPeriod, PeriodStats> = {
 
 export const WEEKLY_REVIEW: WeeklyReview = {
   range: 'June 29 – July 5',
-  weightDelta: '▼ 0.4kg',
-  trendPoints: '0,20 45,28 90,24 135,34 180,30 225,40 270,36 320,44',
   recommendation: 'You lost 0.4kg this week — right on pace. Sleep averaged 6h 40m; try adding 45 minutes next week.',
   avgCalories: '2,340',
   proteinHit: '6/7',

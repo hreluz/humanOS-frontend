@@ -1,18 +1,38 @@
 <script setup lang="ts">
 definePageMeta({ tab: 'profile' })
 
-const { user, userName, initial, goalLabel, signOut, signingOut } = useAuth()
+const { user, profile, userName, initial, goalLabel, signOut, signingOut } = useAuth()
 const { targets } = useFoodLog()
+const { latest, unit, target, load } = useWeighIns()
+const { open } = useModal()
+useAsyncData('load:weight-entries', () => load().then(() => true))
+
+// Set by Edit profile after a successful save; shown briefly.
+const saved = useState('profile-saved', () => false)
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+watch(saved, (value) => {
+  clearTimeout(savedTimer)
+  if (value) savedTimer = setTimeout(() => { saved.value = false }, 4000)
+}, { immediate: true })
+onBeforeUnmount(() => {
+  clearTimeout(savedTimer)
+  saved.value = false
+})
+
+const capitalize = (s: string) => s[0]!.toUpperCase() + s.slice(1)
 
 const about = computed(() => {
-  const p = user.value?.profile
+  const p = profile.value
   if (!p) return []
   return [
-    ['Goal', goalLabel.value],
-    ['Weight', p.weight ? p.weight + ' kg' : '—'],
-    ...(p.target && goalNeedsTarget(p.goal) ? [['Target weight', p.target + ' kg']] : []),
-    ['Height', p.height ? p.height + ' cm' : '—'],
-    ['Activity', p.activity || '—'],
+    { label: 'Goal', value: goalLabel.value },
+    { label: 'Age', value: String(p.age) },
+    { label: 'Sex', value: capitalize(p.sex) },
+    { label: 'Weight', value: p.weight !== null ? `${p.weight} ${unit.value}` : '—', note: latest.value ? `Logged ${formatWeek(latest.value.week)}` : undefined },
+    ...(target.value !== null ? [{ label: 'Target weight', value: `${target.value} ${unit.value}` }] : []),
+    { label: 'Height', value: formatHeight(p) },
+    { label: 'Activity', value: ACTIVITY_LEVELS.find(a => a.value === p.activityLevel)?.label ?? '—' },
+    { label: 'Units', value: capitalize(p.unitSystem) },
   ]
 })
 </script>
@@ -26,11 +46,18 @@ const about = computed(() => {
         <div class="text-sm truncate" :class="inkFaintCls">{{ user.email }}</div>
       </div>
     </div>
-    <h2 class="text-xs font-bold tracking-wide uppercase mb-2" :class="inkFaintCls">About you</h2>
+    <AuthNotice v-if="saved" tone="success" class="mb-4">Profile updated</AuthNotice>
+    <div class="flex items-baseline justify-between mb-2">
+      <h2 class="text-xs font-bold tracking-wide uppercase" :class="inkFaintCls">About you</h2>
+      <button type="button" class="text-[13.5px] font-semibold" :class="linkBlueCls" aria-label="Edit profile" @click="open('editProfile')">Edit</button>
+    </div>
     <div class="rounded-2xl overflow-hidden shadow-xs mb-6" :class="cardCls">
-      <div v-for="([k, v], i) in about" :key="k" class="flex justify-between px-[18px] py-3.5" :class="i < about.length - 1 ? ['border-b', dividerCls] : ''">
-        <span class="text-[14.5px]" :class="inkSoftCls">{{ k }}</span>
-        <span class="text-[14.5px] font-semibold" :class="inkCls">{{ v }}</span>
+      <div v-for="(row, i) in about" :key="row.label" class="flex justify-between items-baseline gap-3 px-[18px] py-3.5" :class="i < about.length - 1 ? ['border-b', dividerCls] : ''">
+        <span class="text-[14.5px]" :class="inkSoftCls">{{ row.label }}</span>
+        <span class="text-right">
+          <span v-if="row.note" class="text-[12.5px] mr-2" :class="inkFaintCls">{{ row.note }}</span>
+          <span class="text-[14.5px] font-semibold" :class="inkCls">{{ row.value }}</span>
+        </span>
       </div>
     </div>
     <h2 class="text-xs font-bold tracking-wide uppercase mb-2" :class="inkFaintCls">Daily targets</h2>

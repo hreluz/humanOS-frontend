@@ -18,6 +18,9 @@ const MODALS: { name: string, from: string, trigger: string | RegExp, ready: str
   { name: 'modal-meal-planner', from: '/food', trigger: 'Meal planner', ready: 'Generate grocery list' },
   { name: 'modal-grocery', from: '/food', trigger: 'Grocery list', ready: 'Pantry' },
   { name: 'modal-coach', from: '/', trigger: /Coach's tip for today/, ready: 'Your weight has plateaued' },
+  { name: 'modal-edit-profile', from: '/profile', trigger: 'Edit profile', ready: 'Birth date' },
+  // The shared user's profile save logged this week, so the review offers to update it.
+  { name: 'modal-weigh-in', from: '/weekly-review', trigger: 'Update this week', ready: 'Update this week\'s weight' },
 ]
 
 test.beforeEach(async ({ context, baseURL }) => {
@@ -37,6 +40,15 @@ for (const theme of THEMES) {
         await shot(page, testInfo, route.name, theme)
       })
     }
+
+    test('onboarding-goal', async ({ page, context }, testInfo) => {
+      // API profile but no goal on this browser: onboarding shows only the goal step.
+      await context.clearCookies({ name: 'humanos_goal' })
+      await gotoReady(page, '/')
+      await expect(page).toHaveURL(/\/onboarding$/)
+      await expect(page.getByRole('heading', { name: 'What\'s your main goal, Alex?' })).toBeVisible()
+      await shot(page, testInfo, 'onboarding-goal', theme)
+    })
 
     for (const modal of MODALS) {
       test(modal.name, async ({ page }, testInfo) => {
