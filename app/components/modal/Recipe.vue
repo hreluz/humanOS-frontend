@@ -52,7 +52,7 @@ async function onSave() {
         <div v-for="(ing, idx) in recipe.ingredients" :key="idx" class="rounded-xl px-3.5 py-2.5 flex items-center gap-3" :class="bgCls">
           <div class="flex-1">
             <div class="text-sm font-semibold" :class="inkCls">{{ ing.name }}</div>
-            <div class="text-xs" :class="inkFaintCls">{{ ing.kcal }} kcal</div>
+            <div class="text-xs" :class="inkFaintCls">{{ ing.kcal }} kcal · {{ ing.p }}g protein · {{ ing.c }}g carbs</div>
           </div>
           <button type="button" :aria-label="`Remove ${ing.name}`" class="w-6 h-6 rounded-full flex items-center justify-center text-[15px]" :class="[cardCls, inkFaintCls]" @click="removeIngredient(idx)">×</button>
         </div>
@@ -62,6 +62,7 @@ async function onSave() {
       <div class="bg-ink rounded-2xl p-4 flex flex-col gap-2.5 mb-4">
         <div class="flex justify-between items-baseline"><span class="text-[13px] text-white/60">Calories</span><span class="text-lg font-bold text-white">{{ perServing.kcal }} kcal</span></div>
         <div class="flex justify-between"><span class="text-[13px] text-white/60">Protein</span><span class="text-[13.5px] font-semibold text-white">{{ perServing.p }}g</span></div>
+        <div class="flex justify-between"><span class="text-[13px] text-white/60">Carbs</span><span class="text-[13.5px] font-semibold text-white">{{ perServing.c }}g</span></div>
       </div>
       <button type="button" class="w-full h-[46px] rounded-full bg-ink text-white flex items-center justify-center text-[14.5px] font-semibold" @click="onSave">Save recipe</button>
 
@@ -84,7 +85,7 @@ async function onSave() {
         >
           <div>
             <div class="text-sm font-semibold" :class="inkCls">{{ item.name }}</div>
-            <div class="text-[11.5px]" :class="inkFaintCls"><template v-if="item.brand === 'My food'">My food · </template>{{ item.serving }} · {{ item.kcal }} kcal</div>
+            <div class="text-[11.5px]" :class="inkFaintCls"><template v-if="item.brand === 'My food'">My food · </template>{{ item.serving }} · {{ item.kcal }} kcal · {{ item.p }}g protein · {{ item.c }}g carbs</div>
           </div>
           <span class="text-base" :class="linkBlueCls">+</span>
         </button>

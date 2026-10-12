@@ -159,7 +159,7 @@ test.describe('interactions', () => {
     await expect(dialog.getByText('525 kcal')).toBeVisible()
 
     await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
-    await expect(dialog.getByText('My food · 15 g · 90 kcal')).toBeVisible()
+    await expect(dialog.getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
@@ -208,7 +208,7 @@ test.describe('interactions', () => {
 
     await page.getByRole('button', { name: 'New recipe' }).click()
     await page.getByRole('dialog').getByRole('button', { name: '+ Add ingredient' }).click()
-    await expect(page.getByRole('dialog').getByText('My food · 15 g · 90 kcal')).toBeVisible()
+    await expect(page.getByRole('dialog').getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
