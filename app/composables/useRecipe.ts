@@ -4,19 +4,16 @@ import * as foodService from '~/services/foodService'
 export function useRecipe() {
   const recipe = ref<RecipeDraft | null>(null)
   const catalog = ref<FoodItem[]>([])
-  const showPicker = ref(false)
   const pickerMode = ref<'list' | 'create'>('list')
   const query = ref('')
   const saving = ref(false)
 
   foodService.getRecipeDraft().then((r) => { recipe.value = r })
 
-  async function togglePicker() {
-    showPicker.value = !showPicker.value
-    pickerMode.value = 'list'
-    query.value = ''
-    if (showPicker.value) catalog.value = await foodService.getIngredientOptions()
+  async function refreshCatalog() {
+    catalog.value = await foodService.getIngredientOptions()
   }
+  refreshCatalog()
 
   const filteredCatalog = computed(() => catalog.value.filter(i => matchesQuery(i.name, query.value)))
 
@@ -27,7 +24,8 @@ export function useRecipe() {
 
   function addIngredient(item: FoodItem) {
     recipe.value?.ingredients.push({ name: item.name, kcal: item.kcal, p: item.p, c: item.c, f: item.f })
-    showPicker.value = false
+    query.value = ''
+    pickerMode.value = 'list'
   }
 
   function removeIngredient(index: number) {
@@ -47,11 +45,21 @@ export function useRecipe() {
     return { kcal: Math.round(kcal / servings), p: Math.round(p / servings), c: Math.round(c / servings), f: Math.round(f / servings) }
   })
 
+  const canSave = computed(() => !!recipe.value?.name.trim() && recipe.value.ingredients.length > 0)
+  const saveHint = computed(() => {
+    if (!recipe.value || canSave.value) return ''
+    const noName = !recipe.value.name.trim()
+    const noIngredients = !recipe.value.ingredients.length
+    if (noName && noIngredients) return 'Add a name and an ingredient to save.'
+    return noName ? 'Add a name to save.' : 'Add an ingredient to save.'
+  })
+
   async function save() {
-    if (!recipe.value) return
+    if (!recipe.value || !canSave.value) return
     saving.value = true
     try {
-      return await foodService.saveRecipe(recipe.value)
+      await foodService.saveRecipe(recipe.value)
+      await navigateTo('/food')
     }
     finally {
       saving.value = false
@@ -59,7 +67,7 @@ export function useRecipe() {
   }
 
   return {
-    recipe, catalog, filteredCatalog, query, showPicker, pickerMode, saving, totals, perServing,
-    togglePicker, changeServings, addIngredient, removeIngredient, startCreate, save,
+    recipe, catalog, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing,
+    refreshCatalog, changeServings, addIngredient, removeIngredient, startCreate, save,
   }
 }

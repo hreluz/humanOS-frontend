@@ -3,7 +3,7 @@ import type { Accent, TabKey } from '~/types/ui'
 export const ICONS = {
   coach: 'M12 21s-8-4.5-8-11a5 5 0 019-3 5 5 0 019 3c0 6.5-8 11-8 11z',
   chevronRight: 'M9 5l7 7-7 7',
-  search: 'M21 21l-4.3-4.3',
+  search: 'M21 21l-4.3-4.3M10.5 17a6.5 6.5 0 100-13 6.5 6.5 0 000 13z',
   protein: 'M12 2v20M6 8h12M4 14h16',
   steps: 'M13 3l-8 11h6l-1 7 8-11h-6l1-7z',
   check: 'M5 12l5 5L20 7',

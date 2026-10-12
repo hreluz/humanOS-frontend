@@ -8,13 +8,13 @@ const ROUTES: { path: string, name: string, ready: string | RegExp }[] = [
   { path: '/stats', name: 'stats', ready: 'Resting HR' },
   { path: '/goals', name: 'goals', ready: 'Eat 170g protein daily' },
   { path: '/goals/new', name: 'new-goal', ready: 'What do you want to track?' },
+  { path: '/food/recipes/new', name: 'new-recipe', ready: 'Ingredients' },
   { path: '/weekly-review', name: 'weekly-review', ready: 'Weight trend' },
   { path: '/profile', name: 'profile', ready: 'About you' },
 ]
 
 const MODALS: { name: string, from: string, trigger: string | RegExp, ready: string }[] = [
   { name: 'modal-ingredient', from: '/food', trigger: 'New ingredient', ready: 'Ingredient name' },
-  { name: 'modal-recipe', from: '/food', trigger: 'New recipe', ready: 'Per serving' },
   { name: 'modal-meal-planner', from: '/food', trigger: 'Meal planner', ready: 'Generate grocery list' },
   { name: 'modal-grocery', from: '/food', trigger: 'Grocery list', ready: 'Pantry' },
   { name: 'modal-coach', from: '/', trigger: /Coach's tip for today/, ready: 'Your weight has plateaued' },
@@ -126,93 +126,108 @@ test.describe('interactions', () => {
 
   test('saved recipe shows up in My Foods', async ({ page }) => {
     await gotoReady(page, '/food')
-    await page.getByRole('button', { name: 'New recipe' }).click()
+    await page.getByRole('link', { name: 'New recipe' }).click()
+    await expect(page).toHaveURL(/\/food\/recipes\/new$/)
     await page.getByRole('button', { name: 'More servings' }).click()
     await expect(page.getByText('2 servings')).toBeVisible()
-    await page.getByRole('dialog').getByRole('button', { name: /^Ingredients/ }).click()
     await page.getByRole('button', { name: 'Remove Olive oil' }).click()
-    await expect(page.getByText('240 kcal kcal')).toHaveCount(0)
+    await expect(page.getByText('Olive oil')).toHaveCount(0)
     await page.getByRole('button', { name: 'Save recipe' }).click()
-    await expect(page.getByRole('dialog')).toBeHidden()
+    await expect(page).toHaveURL(/\/food$/)
 
     await page.getByRole('button', { name: '+ Log food' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
     await expect(page.getByRole('dialog').getByText('Chicken & Rice Bowl', { exact: true })).toBeVisible()
   })
 
-  test('ingredient list starts collapsed with a summary and re-opens on add', async ({ page }) => {
-    await gotoReady(page, '/food')
-    await page.getByRole('button', { name: 'New recipe' }).click()
-    const dialog = page.getByRole('dialog')
-    const toggle = dialog.getByRole('button', { name: /^Ingredients/ })
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    await expect(toggle).toContainText('3 items · 960 kcal')
-    await expect(dialog.getByText('Chicken breast, grilled | Jasmine rice, cooked | Olive oil')).toBeVisible()
-    await expect(dialog.getByRole('button', { name: 'Remove Olive oil' })).toHaveCount(0)
+  test('recipe can\'t be saved without a name or ingredients', async ({ page }) => {
+    await gotoReady(page, '/food/recipes/new')
+    const saveBtn = page.getByRole('button', { name: 'Save recipe' })
+    await expect(saveBtn).toBeEnabled()
+    await page.getByLabel('Recipe name').fill('')
+    await page.getByLabel('Recipe name').blur()
+    await expect(saveBtn).toBeDisabled()
+    await expect(saveBtn).toHaveAccessibleDescription('Add a name to save.')
+    await page.getByLabel('Recipe name').fill('Bowl')
+    await page.getByLabel('Recipe name').blur()
+    await expect(saveBtn).toHaveAccessibleDescription('')
 
-    await toggle.click()
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    await expect(dialog.getByRole('button', { name: 'Remove Olive oil' })).toBeVisible()
-    await toggle.click()
+    // Removing keeps focus in the list, then falls back to the search.
+    await expect(page.getByText('3 items')).toHaveAttribute('aria-live', 'polite')
+    await page.getByRole('button', { name: 'Remove Jasmine rice, cooked' }).click()
+    await expect(page.getByRole('button', { name: 'Remove Olive oil' })).toBeFocused()
+    await page.getByRole('button', { name: 'Remove Olive oil' }).click()
+    await expect(page.getByRole('button', { name: 'Remove Chicken breast, grilled' })).toBeFocused()
+    await page.getByRole('button', { name: 'Remove Chicken breast, grilled' }).click()
+    await expect(page.getByLabel('Add an ingredient')).toBeFocused()
+    await expect(page.getByText('Add the first ingredient below.')).toBeVisible()
+    await page.getByLabel('Add an ingredient').blur()
+    await expect(saveBtn).toBeDisabled()
+    await expect(saveBtn).toHaveAccessibleDescription('Add an ingredient to save.')
+  })
 
-    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
-    await dialog.getByRole('button', { name: /^Whey protein/ }).click()
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    await expect(toggle).toContainText('4 items')
-    await expect(dialog.getByText('Whey protein', { exact: true })).toBeVisible()
+  test('inline search adds an ingredient', async ({ page }, testInfo) => {
+    await gotoReady(page, '/food/recipes/new')
+    await expect(page.getByText('3 items')).toBeVisible()
+    const search = page.getByLabel('Add an ingredient')
+    await search.fill('whey')
+    await page.getByRole('button', { name: /^Whey protein/ }).click()
+    await expect(page.getByText('4 items')).toBeVisible()
+    await expect(page.getByText('Whey protein', { exact: true })).toBeVisible()
+    await expect(search).toHaveValue('')
+    if (testInfo.project.name === 'mobile') {
+      // A tap lets go of the search so the keyboard closes and Save is reachable.
+      await expect(search).not.toBeFocused()
+      await expect(page.getByRole('button', { name: 'Save recipe' })).toBeEnabled()
+    }
+    else {
+      await expect(search).toBeFocused()
+    }
   })
 
   test('custom ingredient is added to the recipe and saved to My Foods', async ({ page }) => {
-    await gotoReady(page, '/food')
-    await page.getByRole('button', { name: 'New recipe' }).click()
-    const dialog = page.getByRole('dialog')
-    await expect(dialog.getByText('960 kcal', { exact: true })).toBeVisible()
-    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
-    await dialog.getByLabel('Search ingredients').fill('tahini')
-    await expect(dialog.getByText('No match for “tahini”.')).toBeVisible()
-    await dialog.getByRole('button', { name: '+ Create “tahini”' }).click()
-    await expect(dialog.getByLabel('Ingredient name')).toHaveValue('tahini')
-    const add = dialog.getByRole('button', { name: 'Add to recipe' })
+    await gotoReady(page, '/food/recipes/new')
+    const perServingKcal = page.getByTestId('per-serving-kcal').filter({ visible: true })
+    await expect(perServingKcal).toHaveText('960 kcal')
+    await page.getByLabel('Add an ingredient').fill('tahini')
+    await expect(page.getByText('No match for “tahini”.')).toBeVisible()
+    await page.getByRole('button', { name: '+ Create “tahini”' }).click()
+    await expect(page.getByLabel('Ingredient name')).toHaveValue('tahini')
+    const add = page.getByRole('button', { name: 'Add to recipe' })
     await expect(add).toBeDisabled()
-    await dialog.getByLabel('Nutrition per').fill('15')
-    await dialog.getByLabel('Calories (kcal)').fill('90')
-    await dialog.getByLabel('Fat (g)').fill('8')
+    await page.getByLabel('Nutrition per').fill('15')
+    await page.getByLabel('Calories (kcal)').fill('90')
+    await page.getByLabel('Fat (g)').fill('8')
     await add.click()
-    await expect(dialog.getByText('tahini', { exact: true })).toBeVisible()
-    await expect(dialog.getByText('1050 kcal', { exact: true })).toBeVisible()
+    await expect(page.getByText('tahini', { exact: true })).toBeVisible()
+    await page.getByLabel('Add an ingredient').blur()
+    await expect(perServingKcal).toHaveText('1050 kcal')
 
-    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
-    await expect(dialog.getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
-    await dialog.getByRole('button', { name: 'Cancel' }).click()
-    await page.keyboard.press('Escape')
-    await expect(dialog).toBeHidden()
+    await page.getByLabel('Add an ingredient').fill('tahini')
+    await expect(page.getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
 
+    await page.getByRole('link', { name: '← Back to food' }).click()
     await page.getByRole('button', { name: '+ Log food' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
     await expect(page.getByRole('dialog').getByText('tahini', { exact: true })).toBeVisible()
   })
 
-  test('ingredient picker: focus, helper text and Escape steps back', async ({ page }) => {
-    await gotoReady(page, '/food')
-    await page.getByRole('button', { name: 'New recipe' }).click()
-    const dialog = page.getByRole('dialog')
-    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
-    await expect(dialog.getByLabel('Search ingredients')).toBeFocused()
-    await dialog.getByRole('button', { name: '+ Create ingredient' }).click()
-    await expect(dialog.getByLabel('Ingredient name')).toBeFocused()
-    await expect(dialog.getByText('Add a name and calories to save.')).toBeVisible()
-    await dialog.getByLabel('Ingredient name').fill('Tahini')
-    await expect(dialog.getByText('Add calories to save.')).toBeVisible()
-    await dialog.getByLabel('Calories (kcal)').fill('90')
-    await expect(dialog.getByText(/to save\.$/)).toBeHidden()
+  test('ingredient search: helper text and Escape steps back', async ({ page }) => {
+    await gotoReady(page, '/food/recipes/new')
+    const search = page.getByLabel('Add an ingredient')
+    await search.fill('Tahini')
+    await page.getByRole('button', { name: '+ Create “Tahini”' }).click()
+    await expect(page.getByLabel('Calories (kcal)')).toBeFocused()
+    await expect(page.getByText('Add calories to save.')).toBeVisible()
+    await page.getByLabel('Calories (kcal)').fill('90')
+    await expect(page.getByText(/to save\.$/)).toBeHidden()
 
     await page.keyboard.press('Escape')
-    await expect(dialog.getByLabel('Search ingredients')).toBeFocused()
+    await expect(search).toBeFocused()
+    await expect(search).toHaveValue('Tahini')
     await page.keyboard.press('Escape')
-    await expect(dialog.getByText('Per serving')).toBeVisible()
-    await expect(dialog.getByLabel('Search ingredients')).toBeHidden()
-    await page.keyboard.press('Escape')
-    await expect(dialog).toBeHidden()
+    await expect(search).toHaveValue('')
+    await expect(page).toHaveURL(/\/food\/recipes\/new$/)
   })
 
   test('ingredient created from the Food page is saved to My Foods', async ({ page }) => {
@@ -229,11 +244,10 @@ test.describe('interactions', () => {
     await dialog.getByRole('button', { name: 'Close' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.getByRole('button', { name: 'New recipe' }).click()
-    await page.getByRole('dialog').getByRole('button', { name: '+ Add ingredient' }).click()
-    await expect(page.getByRole('dialog').getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
-    await page.keyboard.press('Escape')
-    await page.keyboard.press('Escape')
+    await page.getByRole('link', { name: 'New recipe' }).click()
+    await page.getByLabel('Add an ingredient').fill('tahini')
+    await expect(page.getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
+    await page.getByRole('link', { name: '← Back to food' }).click()
 
     await page.getByRole('button', { name: '+ Log food' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
