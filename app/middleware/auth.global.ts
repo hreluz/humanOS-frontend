@@ -1,7 +1,7 @@
 const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password']
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { hasToken, isAuthenticated, hasProfile, fetchMe } = useAuth()
+  const { hasToken, isAuthenticated, profileLoaded, hasProfile, hasGoal, fetchMe, fetchProfile } = useAuth()
 
   // Restore the account from the token (first SSR render, or after a reload).
   if (hasToken.value && !isAuthenticated.value) await fetchMe()
@@ -10,8 +10,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     if (!AUTH_ROUTES.includes(to.path)) return navigateTo('/login')
     return
   }
-  // Signed in without a profile on this browser: onboarding first.
-  if (!hasProfile.value) {
+  // The onboarding gate needs the profile on first paint; it is loaded once per session.
+  if (!profileLoaded.value) await fetchProfile()
+
+  // No API profile, or no goal picked on this browser: onboarding first (goal-only when the profile exists).
+  if (!hasProfile.value || !hasGoal.value) {
     if (to.path !== '/onboarding') return navigateTo('/onboarding')
     return
   }

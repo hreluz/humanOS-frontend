@@ -217,10 +217,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the profile
+         * @description Returns the user's body profile with their latest weight and target weight. Values are
+         *     returned in the user's `unit_system` and in metric. A user who has not saved a profile
+         *     yet gets 404.
+         */
+        get: operations["profile.show"];
+        /**
+         * Save the profile
+         * @description Creates the user's profile or fully replaces it; every field is required. Values are read
+         *     in `unit_system` units, stored in metric, and `unit_system` is kept as the display
+         *     preference. Each save also records one weight entry and one target weight entry, even when
+         *     the values did not change. Always returns 200.
+         */
+        put: operations["profile.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/profile/weight-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List weight entries
+         * @description Lists every weight the user has recorded, newest first. One entry is added on each profile
+         *     save. `weight` is in the profile's `unit_system` (metric if the user has no profile yet).
+         */
+        get: operations["weightEntry.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/profile/target-weight-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List target weight entries
+         * @description Lists every target weight the user has set, newest first. One entry is added on each profile
+         *     save. `target_weight` is in the profile's `unit_system` (metric if the user has no profile yet).
+         */
+        get: operations["targetWeightEntry.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ActivityLevel
+         * @enum {string}
+         */
+        ActivityLevel: "sedentary" | "lightly_active" | "moderately_active" | "very_active" | "extra_active";
         /** AuthTokenResource */
         AuthTokenResource: {
             /** @example 1|xR8nQ2vLk9Tz4WmP7bYc3HdF6gJs1NaE5uVo0iKq6b79c89d */
@@ -246,6 +322,42 @@ export interface components {
             password: string;
             /** @example iPhone 15 */
             device_name?: string | null;
+        };
+        /** ProfileResource */
+        ProfileResource: {
+            /** @example 1990-04-15 */
+            birth_date: string;
+            /** @example 36 */
+            age: number;
+            /** @example female */
+            sex: string;
+            /** @example moderately_active */
+            activity_level: string;
+            /** @example imperial */
+            unit_system: string;
+            /**
+             * @description Height in `unit_system` units: centimetres (metric) or inches (imperial).
+             * @example 65
+             */
+            height: number;
+            /**
+             * @description Latest weight in `unit_system` units: kilograms (metric) or pounds (imperial).
+             * @example 154.3
+             */
+            weight: number | null;
+            /**
+             * @description Latest target weight in `unit_system` units: kilograms (metric) or pounds (imperial).
+             * @example 140
+             */
+            target_weight: number | null;
+            /** @example 165.1 */
+            height_cm: number;
+            /** @example 69.99 */
+            weight_kg: number | null;
+            /** @example 63.5 */
+            target_weight_kg: number | null;
+            /** @example 2026-10-11T09:30:00Z */
+            updated_at: string | null;
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -277,6 +389,26 @@ export interface components {
             /** @example new-correct-horse-battery-staple */
             password_confirmation: string;
         };
+        /**
+         * Sex
+         * @enum {string}
+         */
+        Sex: "male" | "female";
+        /** TargetWeightEntryResource */
+        TargetWeightEntryResource: {
+            /** @example 7 */
+            id: number;
+            /**
+             * @description Target weight in the profile's `unit_system`: kilograms (metric, also used when the user
+             *     has no profile) or pounds (imperial).
+             * @example 140
+             */
+            target_weight: number;
+            /** @example 63.5 */
+            target_weight_kg: number;
+            /** @example 2026-10-11T09:30:00Z */
+            recorded_at: string;
+        };
         /** TokenResource */
         TokenResource: {
             /** @example 1 */
@@ -292,6 +424,45 @@ export interface components {
             /** @example true */
             is_current: boolean;
         };
+        /**
+         * UnitSystem
+         * @enum {string}
+         */
+        UnitSystem: "metric" | "imperial";
+        /** UpdateProfileRequest */
+        UpdateProfileRequest: {
+            /**
+             * @description Units of `height`, `weight` and `target_weight`: cm/kg (metric) or inches/lb
+             *     (imperial). Also saved as the user's display preference.
+             * @example imperial
+             */
+            unit_system: components["schemas"]["UnitSystem"];
+            /**
+             * Format: date
+             * @description The user must be 13 to 120 years old today.
+             * @example 1990-04-15
+             */
+            birth_date: string;
+            /** @example female */
+            sex: components["schemas"]["Sex"];
+            /**
+             * @description Height in centimetres (50–272) or total inches (19.7–107.1).
+             * @example 65
+             */
+            height: number;
+            /**
+             * @description Current weight in kilograms (20–500) or pounds (44.1–1102.3), at most 1 decimal.
+             * @example 154.3
+             */
+            weight: number;
+            /**
+             * @description Target weight in kilograms (20–500) or pounds (44.1–1102.3), at most 1 decimal.
+             * @example 140
+             */
+            target_weight: number;
+            /** @example moderately_active */
+            activity_level: components["schemas"]["ActivityLevel"];
+        };
         /** UserResource */
         UserResource: {
             /** @example 1 */
@@ -306,6 +477,21 @@ export interface components {
             email_verified_at: string | null;
             /** @example 2026-10-11T09:30:00Z */
             created_at: string | null;
+        };
+        /** WeightEntryResource */
+        WeightEntryResource: {
+            /** @example 12 */
+            id: number;
+            /**
+             * @description Weight in the profile's `unit_system`: kilograms (metric, also used when the user
+             *     has no profile) or pounds (imperial).
+             * @example 154.3
+             */
+            weight: number;
+            /** @example 69.99 */
+            weight_kg: number;
+            /** @example 2026-10-11T09:30:00Z */
+            recorded_at: string;
         };
     };
     responses: {
@@ -713,6 +899,104 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "profile.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ProfileResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "profile.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description `ProfileResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "weightEntry.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `WeightEntryResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WeightEntryResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "targetWeightEntry.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `TargetWeightEntryResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TargetWeightEntryResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
 }

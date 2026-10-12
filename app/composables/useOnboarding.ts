@@ -1,28 +1,50 @@
-import type { UserProfile } from '~/types/auth'
+import type { FieldErrors } from '~/types/auth'
+import type { ProfileForm } from '~/types/profile'
 
 export function useOnboarding() {
-  const { firstName, saveProfile } = useAuth()
-  const { logWeighIn } = useWeighIns()
+  const { firstName, hasProfile, hasGoal, saveProfile, setGoal } = useAuth()
+  // Signed in with an API profile but no goal on this browser (e.g. a new device): only the goal step.
+  // Read once, so picking the goal doesn't flip the page to the stats step before navigating away.
+  const goalOnly = hasProfile.value && !hasGoal.value
   const step = ref<0 | 1>(0)
   const submitting = ref(false)
-  const profile = reactive<UserProfile>({ goal: 'lose', age: '', height: '', weight: '', target: '', activity: 'Moderate' })
+  const form = reactive<ProfileForm>({
+    goal: 'lose', unitSystem: 'metric', birthDate: '', sex: '',
+    heightCm: '', heightFt: '', heightIn: '', weight: '', target: '', activityLevel: 'moderately_active',
+  })
+  const errors = reactive<FieldErrors>({})
+  const formError = ref<string>()
 
-  const needsTarget = computed(() => goalNeedsTarget(profile.goal))
-  const statsValid = computed(() => profileStatsValid(profile))
+  const statsValid = computed(() => profileStatsValid(form))
   const canSubmit = computed(() => step.value === 0 || statsValid.value)
 
   async function next() {
     if (step.value === 0) {
-      step.value = 1
+      if (!goalOnly) {
+        step.value = 1
+        return
+      }
+      setGoal(form.goal)
+      await navigateTo('/')
       return
     }
-    if (!statsValid.value) return
+    if (!statsValid.value || submitting.value) return
+    for (const key of Object.keys(errors)) errors[key] = undefined
+    formError.value = undefined
     submitting.value = true
     try {
-      await saveProfile({ ...profile })
-      // The onboarding weight is the first point on the weekly trend.
-      await logWeighIn(+profile.weight, profile.activity)
+      // The PUT also records the first weight entry.
+      await saveProfile(toPayload(form))
+      setGoal(form.goal)
       await navigateTo('/')
+    }
+    catch (err) {
+      const mapped = toProfileErrors(err, form.unitSystem)
+      if (!mapped) formError.value = toFormMessage(err)
+      else {
+        Object.assign(errors, mapped.fields)
+        formError.value = mapped.formError
+      }
     }
     finally {
       submitting.value = false
@@ -31,5 +53,5 @@ export function useOnboarding() {
 
   const back = () => { step.value = 0 }
 
-  return { step, profile, firstName, needsTarget, statsValid, canSubmit, submitting, next, back }
+  return { step, form, errors, formError, firstName, goalOnly, statsValid, canSubmit, submitting, next, back }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { close } = useModal()
-const { form, needsTarget, valid, saving, save } = useProfileForm()
+const { form, errors, formError, valid, saving, save } = useProfileForm()
 
 async function onSubmit() {
   if (await save()) close()
@@ -14,13 +14,8 @@ async function onSubmit() {
       <ModalCloseButton />
     </div>
     <form class="flex-1 overflow-auto p-5 flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
-      <div class="grid grid-cols-2 gap-3">
-        <AuthField v-model="form.weight" label="Current weight" type="number" placeholder="82" suffix="kg" />
-        <AuthField v-if="needsTarget" v-model="form.target" label="Target weight" type="number" :placeholder="form.goal === 'lose' ? '76' : '86'" suffix="kg" />
-        <AuthField v-model="form.height" label="Height" type="number" placeholder="180" suffix="cm" />
-        <AuthField v-model="form.age" label="Age" type="number" placeholder="32" suffix="yrs" />
-      </div>
-      <AppActivityPicker v-model="form.activity" />
+      <AuthNotice v-if="formError" tone="error">{{ formError }}</AuthNotice>
+      <AppProfileFields v-model="form" :errors="errors" />
       <div class="flex flex-col gap-1.5">
         <span class="text-[12.5px] font-semibold" :class="inkSoftCls">Main goal</span>
         <AppGoalPicker v-model="form.goal" />

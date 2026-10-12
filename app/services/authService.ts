@@ -1,7 +1,6 @@
 import type { components } from '~/types/api.generated'
-import type { AuthSession, AuthUser, RegisterPayload, ResetPasswordPayload, UserProfile } from '~/types/auth'
+import type { AuthSession, AuthUser, RegisterPayload, ResetPasswordPayload } from '~/types/auth'
 import { api } from './api'
-import { delay } from './mocks/delay'
 
 // Wire types come from the backend's OpenAPI contract (`pnpm gen:api`); this file maps them to app types.
 type Schemas = components['schemas']
@@ -47,10 +46,4 @@ export function resetPassword(payload: ResetPasswordPayload): Promise<void> {
     method: 'POST',
     body: { token: payload.token, email: payload.email, password: payload.password, password_confirmation: payload.passwordConfirmation } satisfies Schemas['ResetPasswordRequest'],
   }).then(() => {})
-}
-
-// No profile API yet: the hook persists the profile locally. Swap for an api() call once it exists.
-export async function saveProfile(profile: UserProfile): Promise<UserProfile> {
-  await delay()
-  return profile
 }

@@ -1,20 +1,26 @@
 <script setup lang="ts">
 definePageMeta({ tab: 'profile' })
 
-const { user, userName, initial, goalLabel, signOut, signingOut } = useAuth()
+const { user, profile, userName, initial, goalLabel, signOut, signingOut } = useAuth()
 const { targets } = useFoodLog()
-const { latest } = useWeighIns()
+const { latest, unit, target, load } = useWeighIns()
 const { open } = useModal()
+useAsyncData('load:weight-entries', () => load().then(() => true))
+
+const capitalize = (s: string) => s[0]!.toUpperCase() + s.slice(1)
 
 const about = computed(() => {
-  const p = user.value?.profile
+  const p = profile.value
   if (!p) return []
   return [
     { label: 'Goal', value: goalLabel.value },
-    { label: 'Weight', value: p.weight ? p.weight + ' kg' : '—', note: latest.value ? `Logged ${formatWeek(latest.value.week)}` : undefined },
-    ...(p.target && goalNeedsTarget(p.goal) ? [{ label: 'Target weight', value: p.target + ' kg' }] : []),
-    { label: 'Height', value: p.height ? p.height + ' cm' : '—' },
-    { label: 'Activity', value: p.activity || '—' },
+    { label: 'Age', value: String(p.age) },
+    { label: 'Sex', value: capitalize(p.sex) },
+    { label: 'Weight', value: p.weight !== null ? `${p.weight} ${unit.value}` : '—', note: latest.value ? `Logged ${formatWeek(latest.value.week)}` : undefined },
+    ...(target.value !== null ? [{ label: 'Target weight', value: `${target.value} ${unit.value}` }] : []),
+    { label: 'Height', value: formatHeight(p) },
+    { label: 'Activity', value: ACTIVITY_LEVELS.find(a => a.value === p.activityLevel)?.label ?? '—' },
+    { label: 'Units', value: capitalize(p.unitSystem) },
   ]
 })
 </script>

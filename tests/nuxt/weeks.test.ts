@@ -24,9 +24,10 @@ describe('formatWeek', () => {
 
 describe('formatDelta / deltaTone', () => {
   it('formats signed kilograms', () => {
-    expect(formatDelta(-0.44)).toBe('−0.4 kg')
-    expect(formatDelta(0.6)).toBe('+0.6 kg')
-    expect(formatDelta(0.02)).toBe('No change')
+    expect(formatDelta(-0.44, 'kg')).toBe('−0.4 kg')
+    expect(formatDelta(0.6, 'kg')).toBe('+0.6 kg')
+    expect(formatDelta(0.9, 'lb')).toBe('+0.9 lb')
+    expect(formatDelta(0.02, 'lb')).toBe('No change')
   })
 
   it('is good when moving toward the goal', () => {

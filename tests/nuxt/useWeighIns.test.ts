@@ -1,76 +1,76 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
-import type { AuthUser, UserProfile } from '~/types/auth'
-import type { WeighIn } from '~/types/progress'
+import type { AuthUser, GoalKey } from '~/types/auth'
+import type { Profile, WeightEntry } from '~/types/profile'
 import * as authService from '~/services/authService'
-import * as progressService from '~/services/progressService'
+import * as profileService from '~/services/profileService'
 
 vi.mock('~/services/authService')
-vi.mock('~/services/progressService')
+vi.mock('~/services/profileService')
 
 const ana: AuthUser = { id: 1, name: 'Ana Torres', email: 'ana@example.com', role: 'user', emailVerifiedAt: null, createdAt: null }
-const ben: AuthUser = { ...ana, id: 2, name: 'Ben Ito', email: 'ben@example.com' }
-const profile: UserProfile = { goal: 'lose', age: '32', height: '180', weight: '82', target: '76', activity: 'Moderate' }
-
-function clearCookies() {
-  for (const name of ['humanos_token', 'humanos_profile', 'humanos_weighins']) document.cookie = `${name}=; Max-Age=0; path=/`
+const metric: Profile = {
+  birthDate: '1994-04-15', age: 32, sex: 'male', activityLevel: 'moderately_active', unitSystem: 'metric',
+  height: 180, weight: 82.1, targetWeight: 76, heightCm: 180, weightKg: 82.1, targetWeightKg: 76, updatedAt: null,
 }
+const imperial: Profile = { ...metric, unitSystem: 'imperial', height: 71, weight: 181, targetWeight: 167.6 }
 
-/** Seeds past weeks, oldest first, ending the week before this one. */
-function seed(weights: number[]) {
-  const entries: WeighIn[] = weights.map((weight, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - 7 * (weights.length - i))
-    return { week: weekStart(d), weight, activity: 'Moderate' }
-  })
-  useState('weigh-ins').value = { userId: ana.id, entries }
+const DAY = 24 * 60 * 60 * 1000
+// Monday 00:00 of this week (local time), so "same week" entries never straddle a week boundary.
+const monday = () => {
+  const [y, m, d] = weekStart().split('-').map(Number)
+  return new Date(y!, m! - 1, d!).getTime()
 }
+let nextId = 1
+/** An entry recorded `weeksAgo` weeks before this week's Monday, `hours` into that day. */
+const entry = (weight: number, weeksAgo: number, hours = 9): WeightEntry =>
+  ({ id: nextId++, weight, weightKg: weight, recordedAt: new Date(monday() - weeksAgo * 7 * DAY + hours * 3600_000).toISOString() })
 
-async function signInAs(user: AuthUser) {
-  vi.mocked(authService.login).mockResolvedValue({ token: `${user.id}|t`, user })
+async function signIn(profile: Profile, goal: GoalKey = 'lose') {
+  vi.mocked(authService.login).mockResolvedValue({ token: '1|t', user: ana })
+  vi.mocked(profileService.getProfile).mockResolvedValue(profile)
   const auth = useAuth()
-  await auth.login(user.email, 'secret-123')
-  await auth.saveProfile(profile)
+  await auth.login(ana.email, 'secret-123')
+  await auth.fetchProfile()
+  auth.setGoal(goal)
   return auth
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(authService.saveProfile).mockImplementation(async p => p)
-  vi.mocked(progressService.saveWeighIn).mockImplementation(async e => e)
   clearNuxtState()
-  clearCookies()
+  for (const name of ['humanos_token', 'humanos_goal']) document.cookie = `${name}=; Max-Age=0; path=/`
 })
 
 describe('useWeighIns', () => {
-  it('logs this week and syncs weight and activity to the profile', async () => {
-    const auth = await signInAs(ana)
+  it('groups entries by week, keeping the latest per week, oldest first', async () => {
+    await signIn(metric)
+    // API order: newest first.
+    vi.mocked(profileService.weightEntries).mockResolvedValue([entry(81.1, 0, 20), entry(81.4, 0, 8), entry(82.5, 1), entry(83, 2)])
     const w = useWeighIns()
-    expect(w.loggedThisWeek.value).toBe(false)
 
-    await w.logWeighIn(81.4, 'Light')
-    await nextTick()
+    await w.load()
 
-    expect(w.latest.value).toEqual({ week: weekStart(), weight: 81.4, activity: 'Light' })
+    expect(w.entries.value.map(e => e.weight)).toEqual([83, 82.5, 81.1])
+    expect(w.latest.value?.week).toBe(weekStart())
     expect(w.loggedThisWeek.value).toBe(true)
-    expect(auth.user.value?.profile).toMatchObject({ weight: '81.4', activity: 'Light' })
   })
 
-  it('replaces an entry logged earlier the same week', async () => {
-    await signInAs(ana)
+  it('loads the history once', async () => {
+    await signIn(metric)
+    vi.mocked(profileService.weightEntries).mockResolvedValue([entry(82, 0)])
     const w = useWeighIns()
-    await w.logWeighIn(81.4, 'Light')
-    await w.logWeighIn(81.1, 'Moderate')
 
-    expect(w.entries.value).toHaveLength(1)
-    expect(w.latest.value?.weight).toBe(81.1)
+    await w.load()
+    await w.load()
+
+    expect(profileService.weightEntries).toHaveBeenCalledOnce()
   })
 
   it('computes changes and the distance to target', async () => {
-    await signInAs(ana)
-    seed([83, 82.5])
+    await signIn(metric)
+    vi.mocked(profileService.weightEntries).mockResolvedValue([entry(82.1, 0), entry(82.5, 1), entry(83, 2)])
     const w = useWeighIns()
-    await w.logWeighIn(82.1, 'Moderate')
+    await w.load()
 
     expect(w.weekDelta.value).toBeCloseTo(-0.4)
     expect(w.totalDelta.value).toBeCloseTo(-0.9)
@@ -80,23 +80,33 @@ describe('useWeighIns', () => {
     expect(w.chart.value?.targetY).not.toBeNull()
   })
 
-  it(`keeps only the last ${MAX_WEIGH_INS} weeks`, async () => {
-    await signInAs(ana)
-    seed(Array.from({ length: MAX_WEIGH_INS }, (_, i) => 90 - i * 0.1))
+  it('uses the profile unit and target', async () => {
+    await signIn(imperial)
     const w = useWeighIns()
-    const oldest = w.entries.value[0]!.week
-
-    await w.logWeighIn(85, 'Moderate')
-
-    expect(w.entries.value).toHaveLength(MAX_WEIGH_INS)
-    expect(w.entries.value[0]!.week).not.toBe(oldest)
+    expect(w.unit.value).toBe('lb')
+    expect(w.target.value).toBe(167.6)
   })
 
-  it('ignores weigh-ins saved by another account', async () => {
-    await signInAs(ana)
-    seed([83, 82.5])
-    await signInAs(ben)
+  it.each(['maintain', 'fitness'] as const)('has no target for %s', async (goal) => {
+    await signIn(metric, goal)
+    const w = useWeighIns()
+    expect(w.unit.value).toBe('kg')
+    expect(w.target.value).toBeNull()
+  })
 
-    expect(useWeighIns().entries.value).toEqual([])
+  it('logs a weigh-in as a PUT of the saved profile with the new weight, then refetches', async () => {
+    const auth = await signIn(metric)
+    vi.mocked(profileService.saveProfile).mockResolvedValue({ ...metric, weight: 81.4 })
+    vi.mocked(profileService.weightEntries).mockResolvedValue([entry(81.4, 0)])
+    const w = useWeighIns()
+
+    await w.logWeighIn(81.4)
+
+    expect(profileService.saveProfile).toHaveBeenCalledWith({
+      unitSystem: 'metric', birthDate: '1994-04-15', sex: 'male', height: 180, weight: 81.4, targetWeight: 76, activityLevel: 'moderately_active',
+    })
+    expect(auth.profile.value?.weight).toBe(81.4)
+    expect(w.latest.value?.weight).toBe(81.4)
+    expect(w.saving.value).toBe(false)
   })
 })

@@ -8,7 +8,8 @@ const { summary } = useFoodLog()
 const { steps } = useTodayActivity()
 const { review } = useWeeklyReview()
 const { tip } = useCoachTip()
-const { latest, loggedThisWeek } = useWeighIns()
+const { latest, loggedThisWeek, unit, load } = useWeighIns()
+useAsyncData('load:weight-entries', () => load().then(() => true))
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 </script>
@@ -78,7 +79,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </div>
         <div class="flex-1 min-w-0">
           <div class="text-[15px] font-bold" :class="inkCls">Log this week's weight</div>
-          <div class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ latest ? `Last: ${latest.weight} kg on ${formatWeek(latest.week)}` : 'Start tracking your progress' }}</div>
+          <div class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ latest ? `Last: ${latest.weight} ${unit} on ${formatWeek(latest.week)}` : 'Start tracking your progress' }}</div>
         </div>
         <AppIcon :path="ICONS.chevronRight" class="w-3.5 h-3.5 shrink-0" :class="inkFaintCls" />
       </button>
