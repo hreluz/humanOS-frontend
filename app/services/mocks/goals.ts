@@ -5,6 +5,12 @@ export const INITIAL_GOALS: Goal[] = [
   { id: 'protein', label: 'Eat 170g protein daily', sub: '6/7 days', pct: 86, accent: 'blue' },
   { id: 'steps', label: 'Walk 10,000 steps', sub: '6,200 today', pct: 62, accent: 'green' },
   { id: 'bench', label: 'Bench press 100kg', sub: '92.5kg best', pct: 92, accent: 'violet' },
+  { id: 'sleep', label: 'Sleep 8 hours', sub: '7.2h avg', pct: 90, accent: 'violet' },
+  { id: 'water', label: 'Drink 3L water daily', sub: '1.8L today', pct: 60, accent: 'blue' },
+  { id: 'calories', label: 'Eat 2,300 kcal daily', sub: '2,340 avg', pct: 98, accent: 'amber' },
+  { id: 'workouts', label: 'Train 5x per week', sub: '4/5 this week', pct: 80, accent: 'coral' },
+  { id: 'active_kcal', label: 'Burn 500 active kcal daily', sub: '480 today', pct: 96, accent: 'green' },
+  { id: 'vo2', label: 'Reach VO2 max 45', sub: '41.2 now', pct: 40, accent: 'blue' },
 ]
 
 export const GOAL_TEMPLATES: GoalTemplate[] = [
@@ -14,4 +20,8 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
   { key: 'sleep', label: 'Sleep', hint: 'Track hours of sleep per night', defaultTarget: 8, step: 0.5, min: 4, icon: 'M20 12.5A8.5 8.5 0 1111.5 4a6.5 6.5 0 008.5 8.5z', accent: 'violet', unit: 'h', labelTemplate: 'Sleep {raw} hours' },
   { key: 'water', label: 'Water intake', hint: 'Track liters of water per day', defaultTarget: 3, step: 0.25, min: 1, icon: 'M12 2s7 8 7 13a7 7 0 11-14 0c0-5 7-13 7-13z', accent: 'blue', unit: 'L', labelTemplate: 'Drink {value} water daily' },
   { key: 'weight', label: 'Target weight', hint: 'Track progress toward a weight goal', defaultTarget: 76, step: 0.5, min: 40, icon: 'M4 12h4l2-7 4 14 2-7h4', accent: 'coral', unit: 'kg', labelTemplate: 'Reach {value}' },
+  { key: 'calories', label: 'Daily calories', hint: 'Track calories eaten per day', defaultTarget: 2300, step: 50, min: 1200, icon: 'M12 3c1 3 5 5.5 5 10.5a5 5 0 01-10 0c0-2.5 1.5-4 2.5-5.5.5 1.5 1.5 2.5 2.5 2.5 0-2.5-1-5 0-7.5z', accent: 'amber', unit: ' kcal', localeFormat: true, labelTemplate: 'Eat {value} daily' },
+  { key: 'workouts', label: 'Weekly workouts', hint: 'Track training sessions per week', defaultTarget: 5, step: 1, min: 1, icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4', accent: 'coral', unit: 'x', labelTemplate: 'Train {value} per week' },
+  { key: 'active_kcal', label: 'Active calories', hint: 'Track calories burned through activity', defaultTarget: 500, step: 25, min: 100, icon: 'M4 17l4-5 3 3 5-7 4 5', accent: 'green', unit: '', localeFormat: true, labelTemplate: 'Burn {value} active kcal daily' },
+  { key: 'vo2', label: 'VO2 max', hint: 'Track your cardio fitness', defaultTarget: 45, step: 0.5, min: 20, icon: 'M3 12h4l2-4 4 8 2-4h6', accent: 'blue', unit: '', labelTemplate: 'Reach VO2 max {value}' },
 ]
