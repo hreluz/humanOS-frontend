@@ -134,76 +134,79 @@ const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-cent
 
     <!-- Pinned: amounts, the goals this moves, and the action -->
     <div class="shrink-0 border-t px-5 pt-4 pb-5 flex flex-col gap-4" :class="dividerCls">
-      <template v-if="tab === 'food'">
-        <div v-if="basket.length" class="flex flex-col gap-2 max-h-[140px] overflow-auto -m-1 p-1">
-          <div v-for="b in basket" :key="b.item.id" class="flex items-center gap-3">
-            <div class="flex-1 min-w-0">
-              <div class="text-[14px] font-semibold truncate" :class="inkCls">{{ b.item.name }}</div>
-              <div class="text-xs" :class="inkFaintCls">{{ scaleFood(b.item, b.amount).kcal }} kcal · {{ scaleFood(b.item, b.amount).p }}g protein</div>
-            </div>
-            <AppStepper
-              v-model="b.amount"
-              :unit="portionUnit(b.item, b.amount)"
-              :label="b.item.name"
-              :integer="b.item.unit === 'piece' || b.item.unit === 'serving'"
-              :max="AMOUNT_LIMITS[b.item.unit]"
-              @step="dir => stepFood(b.item.id, dir)"
-            />
-          </div>
-        </div>
-        <div v-if="basket.length" class="grid grid-cols-4 gap-1 p-1 rounded-xl" :class="bgCls" role="radiogroup" aria-label="Meal">
-          <button
-            v-for="m in MEAL_OPTIONS"
-            :key="m.key"
-            type="button"
-            role="radio"
-            :aria-checked="meal === m.key"
-            class="min-h-9 rounded-lg text-[12.5px] font-semibold"
-            :class="[focusRingCls, meal === m.key ? segmentOnCls : inkSoftCls]"
-            @click="meal = m.key"
-          >
-            {{ m.label }}
-          </button>
-        </div>
-        <div v-else class="text-[13.5px]" :class="inkFaintCls">Tap + on everything you ate, then set the amounts here.</div>
-      </template>
-
-      <template v-else-if="tab === 'activity'">
-        <div v-if="activity" class="flex flex-col gap-2.5">
-          <div class="flex items-center gap-3">
-            <div class="flex-1 min-w-0 text-[14px] font-semibold" :class="inkCls">{{ activity.label }}</div>
-            <AppStepper v-model="activityAmount" :unit="activity.unit" :label="activity.label" integer :max="AMOUNT_LIMITS[activity.unit]" @step="stepActivity" />
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="flex-1 min-w-0">
-              <div class="text-[14px] font-semibold" :class="inkCls">Calories burned</div>
-              <div class="text-xs" :class="inkFaintCls">
-                <template v-if="kcalOverride === null">Estimated from your weight, {{ Math.round(kg * 10) / 10 }} kg</template>
-                <template v-else>
-                  Changed from the {{ estimatedKcal }} kcal estimate.
-                  <button type="button" class="font-semibold" :class="[linkBlueCls, focusRingCls]" @click="resetKcal">Use estimate</button>
-                </template>
+      <!-- On phones the details scroll so the list above keeps its room; the action stays put. -->
+      <div class="flex flex-col gap-4 max-h-[30vh] md:max-h-none overflow-auto -m-1 p-1">
+        <template v-if="tab === 'food'">
+          <div v-if="basket.length" class="flex flex-col gap-2 max-h-[140px] overflow-auto -m-1 p-1">
+            <div v-for="b in basket" :key="b.item.id" class="flex items-center gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="text-[14px] font-semibold truncate" :class="inkCls">{{ b.item.name }}</div>
+                <div class="text-xs" :class="inkFaintCls">{{ scaleFood(b.item, b.amount).kcal }} kcal · {{ scaleFood(b.item, b.amount).p }}g protein</div>
               </div>
+              <AppStepper
+                v-model="b.amount"
+                :unit="portionUnit(b.item, b.amount)"
+                :label="b.item.name"
+                :integer="b.item.unit === 'piece' || b.item.unit === 'serving'"
+                :max="AMOUNT_LIMITS[b.item.unit]"
+                @step="dir => stepFood(b.item.id, dir)"
+              />
             </div>
-            <AppStepper v-model="kcalModel" unit="kcal" label="Calories burned" integer :max="AMOUNT_LIMITS.kcal" @step="stepKcal" />
           </div>
-        </div>
-        <div v-else class="text-[13.5px]" :class="inkFaintCls">Pick what you did, then set how long or how many steps.</div>
-      </template>
-
-      <AppLogTime v-model:day="whenDay" v-model:time="whenTime" :days="days" :now="now" :at="at" :is-now="isNow" @reset="resetWhen" />
-
-      <div v-if="!isToday" class="text-[13px]" :class="inkSoftCls">This counts for {{ otherDay }}, so today's goals don't change.</div>
-      <section v-else-if="impact.length" aria-label="Moves your goals" class="flex flex-col gap-3">
-        <div class="text-[13px] font-semibold" :class="inkSoftCls">Moves your goals</div>
-        <div v-for="row in impact" :key="row.id">
-          <div class="flex justify-between gap-3 text-[13px] mb-1.5">
-            <span class="font-semibold" :class="inkCls">{{ row.label }}</span>
-            <span class="tabular-nums" :class="inkSoftCls">{{ row.change }}</span>
+          <div v-if="basket.length" class="grid grid-cols-4 gap-1 p-1 rounded-xl" :class="bgCls" role="radiogroup" aria-label="Meal">
+            <button
+              v-for="m in MEAL_OPTIONS"
+              :key="m.key"
+              type="button"
+              role="radio"
+              :aria-checked="meal === m.key"
+              class="min-h-9 rounded-lg text-[12.5px] font-semibold"
+              :class="[focusRingCls, meal === m.key ? segmentOnCls : inkSoftCls]"
+              @click="meal = m.key"
+            >
+              {{ m.label }}
+            </button>
           </div>
-          <AppProgressBar :pct="row.pct" :add-pct="row.addPct" :accent="row.accent" />
-        </div>
-      </section>
+          <div v-else class="text-[13.5px]" :class="inkFaintCls">Tap + on everything you ate, then set the amounts here.</div>
+        </template>
+
+        <template v-else-if="tab === 'activity'">
+          <div v-if="activity" class="flex flex-col gap-2.5">
+            <div class="flex items-center gap-3">
+              <div class="flex-1 min-w-0 text-[14px] font-semibold" :class="inkCls">{{ activity.label }}</div>
+              <AppStepper v-model="activityAmount" :unit="activity.unit" :label="activity.label" integer :max="AMOUNT_LIMITS[activity.unit]" @step="stepActivity" />
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="text-[14px] font-semibold" :class="inkCls">Calories burned</div>
+                <div class="text-xs" :class="inkFaintCls">
+                  <template v-if="kcalOverride === null">Estimated from your weight, {{ Math.round(kg * 10) / 10 }} kg</template>
+                  <template v-else>
+                    Changed from the {{ estimatedKcal }} kcal estimate.
+                    <button type="button" class="font-semibold" :class="[linkBlueCls, focusRingCls]" @click="resetKcal">Use estimate</button>
+                  </template>
+                </div>
+              </div>
+              <AppStepper v-model="kcalModel" unit="kcal" label="Calories burned" integer :max="AMOUNT_LIMITS.kcal" @step="stepKcal" />
+            </div>
+          </div>
+          <div v-else class="text-[13.5px]" :class="inkFaintCls">Pick what you did, then set how long or how many steps.</div>
+        </template>
+
+        <AppLogTime v-model:day="whenDay" v-model:time="whenTime" :days="days" :now="now" :at="at" :is-now="isNow" @reset="resetWhen" />
+
+        <div v-if="!isToday" class="text-[13px]" :class="inkSoftCls">This counts for {{ otherDay }}, so today's goals don't change.</div>
+        <section v-else-if="impact.length" aria-label="Moves your goals" class="flex flex-col gap-3">
+          <div class="text-[13px] font-semibold" :class="inkSoftCls">Moves your goals</div>
+          <div v-for="row in impact" :key="row.id">
+            <div class="flex justify-between gap-3 text-[13px] mb-1.5">
+              <span class="font-semibold" :class="inkCls">{{ row.label }}</span>
+              <span class="tabular-nums" :class="inkSoftCls">{{ row.change }}</span>
+            </div>
+            <AppProgressBar :pct="row.pct" :add-pct="row.addPct" :accent="row.accent" />
+          </div>
+        </section>
+      </div>
 
       <button
         type="button"

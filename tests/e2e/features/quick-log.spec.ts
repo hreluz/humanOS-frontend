@@ -150,10 +150,25 @@ for (const theme of THEMES) {
 
       await dialog.getByRole('button', { name: 'Use right now' }).click()
       await expect(dialog.getByText('Right now')).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /^Today, / })).toBeFocused()
       await dialog.getByRole('radio', { name: 'Yesterday' }).click()
       await dialog.getByRole('button', { name: 'Log 333 ml water' }).click()
       await expect(dialog).toBeHidden()
       await expect(page.getByRole('region', { name: 'Logged today' })).not.toContainText('333 ml')
+    })
+
+    test('time later than now', async ({ page }) => {
+      test.skip(new Date().getHours() === 23 && new Date().getMinutes() >= 58, 'no later time left today')
+      await gotoReady(page, '/')
+      await openQuickLog(page)
+      const dialog = page.getByRole('dialog')
+      await dialog.getByRole('button', { name: /^Today, / }).click()
+      const time = dialog.getByLabel('Time')
+      await expect(dialog.getByText("Can't be later than now")).toBeHidden()
+      await time.fill('23:59')
+      await time.blur()
+      await expect(dialog.getByText("Can't be later than now")).toBeVisible()
+      await expect(time).not.toHaveValue('23:59')
     })
 
     test('meal follows the time', async ({ page }) => {
