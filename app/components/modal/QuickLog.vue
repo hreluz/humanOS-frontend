@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const {
   tab, search, saving, kg,
+  now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
   basket, meal, inBasket, toggleFood, stepFood,
   activityQuery, activityResults, activity, activityAmount, selectActivity, stepActivity,
   estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,
@@ -12,6 +13,10 @@ const { tabindex, onKeydown } = useRadioGroup(QUICK_LOG_TABS.map(t => t.key), ta
 
 const searchBoxCls = ['rounded-xl px-3.5 py-2.5 flex items-center gap-2', bgCls]
 const searchInputCls = ['flex-1 min-w-0 bg-transparent outline-hidden text-[14.5px] placeholder:text-black/30 dark:placeholder:text-white/30', inkCls]
+const otherDay = computed(() => {
+  const label = formatDayLabel(at.value, now.value)
+  return label === 'Yesterday' ? 'yesterday' : label
+})
 const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-center gap-3 text-left border-2', focusRingCls, on ? 'border-ink dark:border-white' : 'border-transparent', bgCls]
 </script>
 
@@ -186,7 +191,10 @@ const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-cent
         <div v-else class="text-[13.5px]" :class="inkFaintCls">Pick what you did, then set how long or how many steps.</div>
       </template>
 
-      <section v-if="impact.length" aria-label="Moves your goals" class="flex flex-col gap-3">
+      <AppLogTime v-model:day="whenDay" v-model:time="whenTime" :days="days" :now="now" :at="at" :is-now="isNow" @reset="resetWhen" />
+
+      <div v-if="!isToday" class="text-[13px]" :class="inkSoftCls">This counts for {{ otherDay }}, so today's goals don't change.</div>
+      <section v-else-if="impact.length" aria-label="Moves your goals" class="flex flex-col gap-3">
         <div class="text-[13px] font-semibold" :class="inkSoftCls">Moves your goals</div>
         <div v-for="row in impact" :key="row.id">
           <div class="flex justify-between gap-3 text-[13px] mb-1.5">

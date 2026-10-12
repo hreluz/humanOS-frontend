@@ -29,8 +29,8 @@ export function useFoodLog() {
     }
   })
 
-  async function addFoods(entries: { item: FoodItem, amount: number }[], meal: MealKey) {
-    log.value = await foodService.addFoodsToLog(entries, meal)
+  async function addFoods(entries: { item: FoodItem, amount: number }[], meal: MealKey, loggedAt?: string) {
+    log.value = await foodService.addFoodsToLog(entries, meal, loggedAt)
   }
 
   return { log, pending, targets, mealSections, summary, addFoods }

@@ -20,6 +20,7 @@ export const WATER_PRESETS = [250, 500, 750]
 const WATER_STEP = 50
 const KCAL_STEP = 10
 const FALLBACK_KG = 75
+const NOW_TICK_MS = 30_000
 
 /** Opens the quick log on a tab; usable anywhere without loading the sheet's data. */
 export function useQuickLogLauncher() {
@@ -46,9 +47,45 @@ export function useQuickLog() {
 
   const kg = computed(() => profile.value?.weightKg ?? FALLBACK_KG)
 
+  // When: null means "right now", resolved at submit so an untouched log is always stamped with the real time.
+  const now = ref(new Date())
+  let nowTimer: ReturnType<typeof setInterval> | undefined
+  onMounted(() => {
+    nowTimer = setInterval(() => { now.value = new Date() }, NOW_TICK_MS)
+  })
+  onBeforeUnmount(() => clearInterval(nowTimer))
+
+  const loggedAt = ref<Date | null>(null)
+  const at = computed(() => loggedAt.value ?? now.value)
+  const days = computed(() => recentDays(now.value))
+  const isNow = computed(() => loggedAt.value === null)
+  const isToday = computed(() => isSameDay(at.value, now.value))
+  // Never later than now: the log is for something that already happened.
+  const setWhen = (d: Date) => {
+    const current = new Date()
+    loggedAt.value = d > current ? current : d
+  }
+  const whenDay = computed({
+    get: () => startOfDay(at.value).getTime(),
+    set: (day: number) => setWhen(combineDayTime(new Date(day), toTimeValue(at.value))),
+  })
+  const whenTime = computed({
+    get: () => toTimeValue(at.value),
+    set: (hhmm: string) => setWhen(combineDayTime(at.value, hhmm)),
+  })
+  const resetWhen = () => {
+    loggedAt.value = null
+    now.value = new Date()
+  }
+
   // Food: a basket of items, each with an amount in the item's unit.
   const basket = ref<{ item: FoodItem, amount: number }[]>([])
-  const meal = ref<MealKey>(mealForHour(new Date().getHours()))
+  // The meal follows the chosen time until the user picks one.
+  const mealChoice = ref<MealKey | null>(null)
+  const meal = computed({
+    get: () => mealChoice.value ?? mealForHour(at.value.getHours()),
+    set: (m: MealKey) => { mealChoice.value = m },
+  })
   const inBasket = (id: string) => basket.value.some(b => b.item.id === id)
 
   function toggleFood(item: FoodItem) {
@@ -113,7 +150,7 @@ export function useQuickLog() {
   /** Each daily goal this log moves: where it is now and where it lands. */
   const impact = computed(() => {
     const t = totals.value
-    if (!t) return []
+    if (!t || !isToday.value) return []
     return (goals.value ?? []).flatMap((g) => {
       const add = g.metric && g.target ? delta.value[g.metric] ?? 0 : 0
       if (!g.metric || !g.target || add <= 0) return []
@@ -143,10 +180,11 @@ export function useQuickLog() {
   async function submit() {
     if (!canSubmit.value) return
     saving.value = true
+    const when = (loggedAt.value ?? new Date()).toISOString()
     try {
-      if (tab.value === 'food') await addFoods(basket.value, meal.value)
-      else if (tab.value === 'activity') await logActivity(activityKey.value!, activityAmount.value, kg.value, activityKcal.value)
-      else await logWater(waterMl.value)
+      if (tab.value === 'food') await addFoods(basket.value, meal.value, when)
+      else if (tab.value === 'activity') await logActivity(activityKey.value!, activityAmount.value, kg.value, activityKcal.value, when)
+      else await logWater(waterMl.value, when)
       close()
     }
     finally {
@@ -156,6 +194,7 @@ export function useQuickLog() {
 
   return {
     tab, search, saving, kg,
+    now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
     basket, meal, inBasket, toggleFood, stepFood,
     activityQuery, activityResults, activity, activityAmount, activityKcal, selectActivity, stepActivity,
     estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,

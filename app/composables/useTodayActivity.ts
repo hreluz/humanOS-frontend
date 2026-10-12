@@ -18,12 +18,12 @@ export function useTodayActivity() {
     return { value, goal, remaining: Math.max(0, goal - value), pct: metricPct(value, goal) }
   })
 
-  async function logActivity(key: string, amount: number, kg: number, kcal?: number) {
-    day.value = await activityService.logActivity(key, amount, kg, kcal)
+  async function logActivity(key: string, amount: number, kg: number, kcal?: number, loggedAt?: string) {
+    day.value = await activityService.logActivity(key, amount, kg, kcal, loggedAt)
   }
 
-  async function logWater(ml: number) {
-    day.value = await activityService.logWater(ml)
+  async function logWater(ml: number, loggedAt?: string) {
+    day.value = await activityService.logWater(ml, loggedAt)
   }
 
   return { today, log, steps, pending, logActivity, logWater }

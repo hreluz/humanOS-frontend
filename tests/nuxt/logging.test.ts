@@ -109,3 +109,30 @@ describe('matchesQuery', () => {
     expect(matchesQuery('Anything', '  ')).toBe(true)
   })
 })
+
+describe('log time', () => {
+  const now = new Date(2026, 9, 12, 14, 45)
+
+  it('lists the last days as local midnights, today first', () => {
+    const days = recentDays(now, 3)
+    expect(days.map(d => [d.getMonth(), d.getDate(), d.getHours()])).toEqual([[9, 12, 0], [9, 11, 0], [9, 10, 0]])
+    expect(recentDays(new Date(2026, 2, 1, 9), 2)[1]!.getDate()).toBe(28)
+  })
+
+  it('combines a day with an input time', () => {
+    expect(combineDayTime(new Date(2026, 9, 11, 23, 59), '08:05')).toEqual(new Date(2026, 9, 11, 8, 5))
+    expect(combineDayTime(new Date(2026, 9, 11, 5), '')).toEqual(new Date(2026, 9, 11))
+    expect(toTimeValue(new Date(2026, 9, 11, 7, 3))).toBe('07:03')
+  })
+
+  it('compares calendar days, not 24-hour spans', () => {
+    expect(isSameDay(new Date(2026, 9, 12, 0, 0), new Date(2026, 9, 12, 23, 59))).toBe(true)
+    expect(isSameDay(new Date(2026, 9, 11, 23, 59), new Date(2026, 9, 12, 0, 1))).toBe(false)
+  })
+
+  it('names the day relative to now', () => {
+    expect(formatLogWhen(new Date(2026, 9, 12, 14, 45), now)).toBe('Today, 2:45 PM')
+    expect(formatLogWhen(new Date(2026, 9, 11, 21, 10), now)).toBe('Yesterday, 9:10 PM')
+    expect(formatLogWhen(new Date(2026, 9, 10, 9, 10), now)).toBe('Sat, Oct 10, 9:10 AM')
+  })
+})

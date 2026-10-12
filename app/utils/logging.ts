@@ -73,3 +73,47 @@ export function mealForHour(hour: number): MealKey {
 export function stepAmount(amount: number, step: number, dir: 1 | -1) {
   return Math.max(step, round1(amount + dir * step))
 }
+
+/** Local midnight of `d`. */
+export function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+/** True when both times fall on the same local calendar day. */
+export function isSameDay(a: Date | string, b: Date | string) {
+  return startOfDay(new Date(a)).getTime() === startOfDay(new Date(b)).getTime()
+}
+
+/** The last `count` days as local midnights, today first. */
+export function recentDays(now: Date, count = 7): Date[] {
+  return Array.from({ length: count }, (_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - i))
+}
+
+/** "HH:MM" (24h), the value format of `<input type="time">`. */
+export function toTimeValue(d: Date) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** `day` at the "HH:MM" time; an unparseable time keeps midnight. */
+export function combineDayTime(day: Date, hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number)
+  const d = startOfDay(day)
+  if (Number.isFinite(h) && Number.isFinite(m)) d.setHours(h!, m!)
+  return d
+}
+
+/** "Today", "Yesterday", "Sat, Oct 10". */
+export function formatDayLabel(day: Date | string, now: Date) {
+  if (isSameDay(day, now)) return 'Today'
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  if (isSameDay(day, yesterday)) return 'Yesterday'
+  return new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+/** "2:45 PM". */
+export const formatLogTime = (iso: Date | string) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
+/** "Today, 2:45 PM", "Yesterday, 9:10 AM", "Sat, Oct 10, 9:10 AM". */
+export function formatLogWhen(at: Date | string, now: Date) {
+  return `${formatDayLabel(at, now)}, ${formatLogTime(at)}`
+}

@@ -38,5 +38,3 @@ export function useTodayTimeline() {
 
   return { entries }
 }
-
-export const formatLogTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })

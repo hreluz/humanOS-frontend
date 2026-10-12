@@ -1,5 +1,5 @@
 import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, MealKey, MealPlan, NewFoodInput, RecipeDraft } from '~/types/food'
-import { buildFood, formatPortion, matchesQuery, scaleFood } from '~/utils/logging'
+import { buildFood, formatPortion, isSameDay, matchesQuery, scaleFood } from '~/utils/logging'
 import { delay } from './mocks/delay'
 import { CATALOG, DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_MY_FOODS, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
 
@@ -7,19 +7,25 @@ import { CATALOG, DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_MY_FOODS, INITIAL_REC
 const foodLog: FoodLog = structuredClone(INITIAL_FOOD_LOG)
 const myFoods: FoodItem[] = structuredClone(INITIAL_MY_FOODS)
 
-export async function getFoodLog(): Promise<FoodLog> {
-  await delay()
-  return structuredClone(foodLog)
+/** Today's food log; entries logged to another day are kept but left out. Seeded items (no time) count as today. */
+function todayLog(): FoodLog {
+  const now = new Date()
+  const today = (meal: MealKey) => foodLog[meal].filter(i => !i.loggedAt || isSameDay(i.loggedAt, now))
+  return structuredClone({ breakfast: today('breakfast'), lunch: today('lunch'), dinner: today('dinner'), snacks: today('snacks') })
 }
 
-/** Logs `amount` of `item` (in the item's unit) to a meal, timestamped now. */
-export async function addFoodsToLog(entries: { item: FoodItem, amount: number }[], meal: MealKey): Promise<FoodLog> {
+export async function getFoodLog(): Promise<FoodLog> {
   await delay()
-  const loggedAt = new Date().toISOString()
+  return todayLog()
+}
+
+/** Logs `amount` of `item` (in the item's unit) to a meal at `loggedAt` (ISO, default now); returns today's log. */
+export async function addFoodsToLog(entries: { item: FoodItem, amount: number }[], meal: MealKey, loggedAt = new Date().toISOString()): Promise<FoodLog> {
+  await delay()
   for (const { item, amount } of entries) {
     foodLog[meal].push({ name: item.name, portion: formatPortion(item, amount), ...scaleFood(item, amount), loggedAt })
   }
-  return structuredClone(foodLog)
+  return todayLog()
 }
 
 export async function getDailyTargets(): Promise<DailyTargets> {
