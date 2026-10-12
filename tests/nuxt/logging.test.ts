@@ -93,3 +93,19 @@ describe('dailyGoalProgress', () => {
     expect(dailyGoalProgress(goal({}), totals)).toEqual({ pct: 50, sub: 'stored' })
   })
 })
+
+describe('buildFood', () => {
+  it('builds a user food with a serving label and unit-sized step', () => {
+    const tahini = buildFood({ name: ' Tahini ', per: 15, unit: 'g', kcal: 90, p: 2.6, c: 3.2, f: 8 }, 't')
+    expect(tahini).toEqual({ id: 't', name: 'Tahini', brand: 'My food', serving: '15 g', per: 15, unit: 'g', step: 10, kcal: 90, p: 2.6, c: 3.2, f: 8 })
+    expect(buildFood({ name: 'Wrap', per: 1, unit: 'piece', kcal: 140, p: 4, c: 24, f: 3 }, 'w')).toMatchObject({ serving: '1 piece', step: 1 })
+  })
+})
+
+describe('matchesQuery', () => {
+  it('matches every word in any order, ignoring case', () => {
+    expect(matchesQuery('Chicken breast, grilled', 'GRILLED chicken')).toBe(true)
+    expect(matchesQuery('Chicken breast, grilled', 'chicken thigh')).toBe(false)
+    expect(matchesQuery('Anything', '  ')).toBe(true)
+  })
+})

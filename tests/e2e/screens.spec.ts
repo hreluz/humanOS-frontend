@@ -13,6 +13,7 @@ const ROUTES: { path: string, name: string, ready: string | RegExp }[] = [
 ]
 
 const MODALS: { name: string, from: string, trigger: string | RegExp, ready: string }[] = [
+  { name: 'modal-ingredient', from: '/food', trigger: 'New ingredient', ready: 'Ingredient name' },
   { name: 'modal-recipe', from: '/food', trigger: 'New recipe', ready: 'Per serving' },
   { name: 'modal-meal-planner', from: '/food', trigger: 'Meal planner', ready: 'Generate grocery list' },
   { name: 'modal-grocery', from: '/food', trigger: 'Grocery list', ready: 'Pantry' },
@@ -136,6 +137,59 @@ test.describe('interactions', () => {
     await page.getByRole('button', { name: '+ Log food' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
     await expect(page.getByRole('dialog').getByText('Chicken & Rice Bowl', { exact: true })).toBeVisible()
+  })
+
+  test('custom ingredient is added to the recipe and saved to My Foods', async ({ page }) => {
+    await gotoReady(page, '/food')
+    await page.getByRole('button', { name: 'New recipe' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText('480 kcal')).toBeVisible()
+    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
+    await dialog.getByLabel('Search ingredients').fill('tahini')
+    await expect(dialog.getByText('No match for “tahini”.')).toBeVisible()
+    await dialog.getByRole('button', { name: '+ Create “tahini”' }).click()
+    await expect(dialog.getByLabel('Ingredient name')).toHaveValue('tahini')
+    const add = dialog.getByRole('button', { name: 'Add to recipe' })
+    await expect(add).toBeDisabled()
+    await dialog.getByLabel('Nutrition per').fill('15')
+    await dialog.getByLabel('Calories (kcal)').fill('90')
+    await dialog.getByLabel('Fat (g)').fill('8')
+    await add.click()
+    await expect(dialog.getByText('tahini', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('525 kcal')).toBeVisible()
+
+    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
+    await expect(dialog.getByText('15 g · 90 kcal')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+
+    await page.getByRole('button', { name: '+ Log food' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
+    await expect(page.getByRole('dialog').getByText('tahini', { exact: true })).toBeVisible()
+  })
+
+  test('ingredient created from the Food page is saved to My Foods', async ({ page }) => {
+    await gotoReady(page, '/food')
+    await page.getByRole('button', { name: 'New ingredient' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Ingredient name').fill('Tahini')
+    await dialog.getByLabel('Nutrition per').fill('15')
+    await dialog.getByLabel('Calories (kcal)').fill('90')
+    await dialog.getByRole('button', { name: 'Save ingredient' }).click()
+    await expect(dialog.getByText('Tahini saved to My foods.')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Create another' }).click()
+    await expect(dialog.getByLabel('Ingredient name')).toHaveValue('')
+    await dialog.getByRole('button', { name: 'Close' }).click()
+    await expect(dialog).toBeHidden()
+
+    await page.getByRole('button', { name: 'New recipe' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '+ Add ingredient' }).click()
+    await expect(page.getByRole('dialog').getByText('15 g · 90 kcal')).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('button', { name: '+ Log food' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
+    await expect(page.getByRole('dialog').getByText('Tahini', { exact: true })).toBeVisible()
   })
 
   test('grocery items toggle', async ({ page }) => {

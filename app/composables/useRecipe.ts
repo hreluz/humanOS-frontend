@@ -5,14 +5,20 @@ export function useRecipe() {
   const recipe = ref<RecipeDraft | null>(null)
   const catalog = ref<FoodItem[]>([])
   const showPicker = ref(false)
+  const pickerMode = ref<'list' | 'create'>('list')
+  const query = ref('')
   const saving = ref(false)
 
   foodService.getRecipeDraft().then((r) => { recipe.value = r })
 
   async function togglePicker() {
     showPicker.value = !showPicker.value
-    if (showPicker.value && !catalog.value.length) catalog.value = await foodService.getCatalog()
+    pickerMode.value = 'list'
+    query.value = ''
+    if (showPicker.value) catalog.value = await foodService.getIngredientOptions()
   }
+
+  const filteredCatalog = computed(() => catalog.value.filter(i => matchesQuery(i.name, query.value)))
 
   function changeServings(delta: number) {
     if (!recipe.value) return
@@ -26,6 +32,10 @@ export function useRecipe() {
 
   function removeIngredient(index: number) {
     recipe.value?.ingredients.splice(index, 1)
+  }
+
+  function startCreate() {
+    pickerMode.value = 'create'
   }
 
   const perServing = computed(() => {
@@ -46,5 +56,8 @@ export function useRecipe() {
     }
   }
 
-  return { recipe, catalog, showPicker, saving, perServing, togglePicker, changeServings, addIngredient, removeIngredient, save }
+  return {
+    recipe, catalog, filteredCatalog, query, showPicker, pickerMode, saving, perServing,
+    togglePicker, changeServings, addIngredient, removeIngredient, startCreate, save,
+  }
 }

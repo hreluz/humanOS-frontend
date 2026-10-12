@@ -1,5 +1,5 @@
-import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, MealKey, MealPlan, RecipeDraft } from '~/types/food'
-import { formatPortion, scaleFood } from '~/utils/logging'
+import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, MealKey, MealPlan, NewFoodInput, RecipeDraft } from '~/types/food'
+import { buildFood, formatPortion, matchesQuery, scaleFood } from '~/utils/logging'
 import { delay } from './mocks/delay'
 import { CATALOG, DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_MY_FOODS, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
 
@@ -31,14 +31,22 @@ export async function searchFoods(query: string, tab: FoodSearchTab): Promise<Fo
   await delay()
   let results = tab === 'myfoods' ? myFoods : CATALOG
   if (tab === 'verified') results = CATALOG.filter(i => i.brand !== 'Generic')
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  if (words.length) results = results.filter(i => words.every(w => i.name.toLowerCase().includes(w)))
+  results = results.filter(i => matchesQuery(i.name, query))
   return structuredClone(results)
 }
 
-export async function getCatalog(): Promise<FoodItem[]> {
+/** Everything usable as a recipe ingredient: the user's own foods first, then the catalog. Recipes are left out. */
+export async function getIngredientOptions(): Promise<FoodItem[]> {
   await delay()
-  return structuredClone(CATALOG)
+  return structuredClone([...myFoods.filter(i => i.brand !== 'Custom recipe').reverse(), ...CATALOG])
+}
+
+/** Saves a food the user typed in to My foods. */
+export async function createFood(input: NewFoodInput): Promise<FoodItem> {
+  await delay()
+  const food = buildFood(input, 'food_' + Date.now())
+  myFoods.push(food)
+  return structuredClone(food)
 }
 
 export async function getRecipeDraft(): Promise<RecipeDraft> {

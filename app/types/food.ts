@@ -37,6 +37,13 @@ export interface FoodItem extends Macros {
   pieceName?: string
 }
 
+/** What the user types when creating a food that isn't in the catalog. */
+export interface NewFoodInput extends Macros {
+  name: string
+  per: number
+  unit: PortionUnit
+}
+
 export type FoodSearchTab = 'all' | 'recent' | 'myfoods' | 'verified'
 
 export interface RecipeIngredient extends Macros {

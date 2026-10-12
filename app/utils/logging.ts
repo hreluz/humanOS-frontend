@@ -1,5 +1,5 @@
 import type { ActivityDef, ActivityUnit } from '~/types/activity'
-import type { FoodItem, Macros, MealKey, PortionUnit } from '~/types/food'
+import type { FoodItem, Macros, MealKey, NewFoodInput, PortionUnit } from '~/types/food'
 
 const round1 = (n: number) => Math.round(n * 10) / 10
 const num = (n: number) => round1(n).toLocaleString('en-US')
@@ -8,6 +8,19 @@ const num = (n: number) => round1(n).toLocaleString('en-US')
 export function scaleFood(item: FoodItem, amount: number): Macros {
   const k = amount / item.per
   return { kcal: Math.round(item.kcal * k), p: round1(item.p * k), c: round1(item.c * k), f: round1(item.f * k) }
+}
+
+/** True when every word of `query` appears in `name`; an empty query matches everything. */
+export function matchesQuery(name: string, query: string) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  return words.every(w => name.toLowerCase().includes(w))
+}
+
+/** A user-created food, with the stepper sized to its unit. */
+export function buildFood(input: NewFoodInput, id: string): FoodItem {
+  const { name, per, unit, kcal, p, c, f } = input
+  const food: FoodItem = { id, name: name.trim(), brand: 'My food', serving: '', per, unit, step: unit === 'g' || unit === 'ml' ? 10 : 1, kcal, p, c, f }
+  return { ...food, serving: formatPortion(food, per) }
 }
 
 /** The unit word shown after an amount: "g", "ml", "egg"/"eggs", "serving"/"servings". */

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 const { close } = useModal()
-const { recipe, catalog, showPicker, perServing, togglePicker, changeServings, addIngredient, removeIngredient, save } = useRecipe()
+const {
+  recipe, filteredCatalog, query, showPicker, pickerMode, perServing,
+  togglePicker, changeServings, addIngredient, removeIngredient, startCreate, save,
+} = useRecipe()
 
 async function onSave() {
   await save()
@@ -45,13 +48,17 @@ async function onSave() {
       </div>
       <button type="button" class="w-full h-[46px] rounded-full bg-ink text-white flex items-center justify-center text-[14.5px] font-semibold" @click="onSave">Save recipe</button>
 
-      <div v-if="showPicker" class="absolute inset-0 p-5 flex flex-col gap-2 overflow-auto" :class="cardCls">
+      <div v-if="showPicker && pickerMode === 'list'" class="absolute inset-0 p-5 flex flex-col gap-2 overflow-auto" :class="cardCls">
         <div class="flex justify-between items-center mb-1">
           <span class="text-[15px] font-bold" :class="inkCls">Add ingredient</span>
           <button type="button" class="text-[13.5px] font-semibold" :class="linkBlueCls" @click="showPicker = false">Close</button>
         </div>
+        <label class="rounded-xl px-3.5 py-2.5 flex items-center gap-2 mb-1" :class="bgCls">
+          <AppIcon :path="ICONS.search" class="w-[15px] h-[15px]" :class="inkFaintCls" />
+          <input v-model="query" type="search" placeholder="Search ingredients" aria-label="Search ingredients" class="flex-1 min-w-0 bg-transparent outline-hidden text-[14.5px] placeholder:text-black/30 dark:placeholder:text-white/30" :class="inkCls">
+        </label>
         <button
-          v-for="item in catalog"
+          v-for="item in filteredCatalog"
           :key="item.id"
           type="button"
           class="rounded-xl px-3.5 py-2.5 flex items-center justify-between text-left"
@@ -64,6 +71,18 @@ async function onSave() {
           </div>
           <span class="text-base" :class="linkBlueCls">+</span>
         </button>
+        <div v-if="!filteredCatalog.length" class="text-[13.5px] py-3 text-center" :class="inkFaintCls">No match for “{{ query.trim() }}”.</div>
+        <button type="button" class="shrink-0 border-[1.5px] border-dashed border-accent-blue/40 rounded-xl px-3.5 py-2.5 flex items-center justify-center gap-2 text-[13.5px] font-semibold" :class="linkBlueCls" @click="startCreate">
+          {{ query.trim() ? `+ Create “${query.trim()}”` : '+ Create ingredient' }}
+        </button>
+      </div>
+
+      <div v-if="showPicker && pickerMode === 'create'" class="absolute inset-0 p-5 flex flex-col gap-3 overflow-auto" :class="cardCls">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-[15px] font-bold" :class="inkCls">New ingredient</span>
+          <button type="button" class="text-[13.5px] font-semibold" :class="linkBlueCls" @click="pickerMode = 'list'">Back</button>
+        </div>
+        <AppIngredientForm :initial-name="query.trim()" submit-label="Add to recipe" @created="addIngredient" />
       </div>
     </div>
   </ModalShell>
