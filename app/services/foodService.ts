@@ -1,6 +1,7 @@
-import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, MacroIntake, MealKey, MealPlan, RecipeDraft } from '~/types/food'
+import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, MealKey, MealPlan, RecipeDraft } from '~/types/food'
+import { formatPortion, scaleFood } from '~/utils/logging'
 import { delay } from './mocks/delay'
-import { CATALOG, DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_MY_FOODS, INITIAL_RECIPE, MACRO_INTAKE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
+import { CATALOG, DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_MY_FOODS, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
 
 // Module-scoped copies stand in for the backend; callers only ever get clones.
 const foodLog: FoodLog = structuredClone(INITIAL_FOOD_LOG)
@@ -11,20 +12,19 @@ export async function getFoodLog(): Promise<FoodLog> {
   return structuredClone(foodLog)
 }
 
-export async function addFoodToLog(item: FoodItem, meal: MealKey = 'snacks'): Promise<FoodLog> {
+/** Logs `amount` of `item` (in the item's unit) to a meal, timestamped now. */
+export async function addFoodsToLog(entries: { item: FoodItem, amount: number }[], meal: MealKey): Promise<FoodLog> {
   await delay()
-  foodLog[meal].push({ name: item.name, kcal: item.kcal })
+  const loggedAt = new Date().toISOString()
+  for (const { item, amount } of entries) {
+    foodLog[meal].push({ name: item.name, portion: formatPortion(item, amount), ...scaleFood(item, amount), loggedAt })
+  }
   return structuredClone(foodLog)
 }
 
 export async function getDailyTargets(): Promise<DailyTargets> {
   await delay()
   return { ...DAILY_TARGETS }
-}
-
-export async function getMacroIntake(): Promise<MacroIntake> {
-  await delay()
-  return { ...MACRO_INTAKE }
 }
 
 export async function searchFoods(query: string, tab: FoodSearchTab): Promise<FoodItem[]> {
@@ -51,7 +51,7 @@ export async function saveRecipe(recipe: RecipeDraft): Promise<FoodItem> {
   const sum = recipe.ingredients.reduce((a, i) => ({ kcal: a.kcal + i.kcal, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { kcal: 0, p: 0, c: 0, f: 0 })
   const per = (n: number) => Math.round(n / recipe.servings)
   const food: FoodItem = {
-    id: 'recipe_' + Date.now(), name: recipe.name, brand: 'Custom recipe', serving: '1 serving',
+    id: 'recipe_' + Date.now(), name: recipe.name, brand: 'Custom recipe', serving: '1 serving', per: 1, unit: 'serving', step: 1,
     kcal: per(sum.kcal), p: per(sum.p), c: per(sum.c), f: per(sum.f),
   }
   myFoods.push(food)

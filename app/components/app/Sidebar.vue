@@ -1,14 +1,25 @@
 <script setup lang="ts">
 const props = defineProps<{ activeTab?: string }>()
 const { open } = useModal()
+const { openQuickLog } = useQuickLogLauncher()
 </script>
 
 <template>
   <nav class="hidden md:flex w-[240px] shrink-0 border-r flex-col p-4" :class="[cardCls, dividerCls]">
-    <div class="flex items-center gap-2.5 px-2 mb-8">
+    <div class="flex items-center gap-2.5 px-2 mb-6">
       <AppLogo />
       <span class="text-[16px] font-bold tracking-tight" :class="inkCls">HumanOS</span>
     </div>
+
+    <button
+      type="button"
+      class="mb-5 h-10 rounded-[10px] bg-ink text-white dark:bg-white dark:text-black text-[14px] font-semibold flex items-center justify-center gap-2"
+      :class="focusRingCls"
+      @click="openQuickLog()"
+    >
+      <AppIcon :path="ICONS.plus" class="w-4 h-4" />
+      Log
+    </button>
 
     <div class="flex flex-col gap-0.5">
       <NuxtLink

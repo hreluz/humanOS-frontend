@@ -2,6 +2,7 @@
 definePageMeta({ tab: 'food' })
 
 const { open } = useModal()
+const { openQuickLog } = useQuickLogLauncher()
 const { mealSections, summary } = useFoodLog()
 const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs', cardCls, inkCls]
 </script>
@@ -14,7 +15,7 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
         <div class="flex gap-2">
           <button type="button" :class="btnCls" @click="open('recipe')">New recipe</button>
           <button type="button" :class="btnCls" @click="open('planner')">Meal planner</button>
-          <button type="button" class="px-3.5 py-2 rounded-[10px] bg-ink text-[13px] font-semibold text-white" @click="open('foodSearch')">+ Log food</button>
+          <button type="button" class="px-3.5 py-2 rounded-[10px] bg-ink text-[13px] font-semibold text-white" @click="openQuickLog('food')">+ Log food</button>
         </div>
       </div>
 
@@ -25,7 +26,7 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
         </div>
         <template v-if="meal.items.length">
           <div v-for="(item, i) in meal.items" :key="i" class="flex justify-between py-2 border-t" :class="dividerCls">
-            <span class="text-[14.5px]" :class="inkCls">{{ item.name }}</span>
+            <span class="text-[14.5px]" :class="inkCls">{{ item.name }}<span v-if="item.portion" :class="inkFaintCls">, {{ item.portion }}</span></span>
             <span class="text-[14px]" :class="inkSoftCls">{{ item.kcal }} kcal</span>
           </div>
         </template>

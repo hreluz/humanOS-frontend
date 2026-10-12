@@ -9,6 +9,8 @@ export const ICONS = {
   check: 'M5 12l5 5L20 7',
   chevronUp: 'M5 15l7-7 7 7',
   signOut: 'M15 12H4m4-4l-4 4 4 4M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4',
+  water: 'M12 2s7 8 7 13a7 7 0 11-14 0c0-5 7-13 7-13z',
+  plus: 'M12 5v14M5 12h14',
   scale: 'M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zM9 10a3 3 0 016 0m-3 0l1.5-2',
 }
 

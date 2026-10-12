@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { THEMES, gotoReady, setTheme, shot, signIn } from './helpers'
+import { THEMES, gotoReady, openQuickLog, setTheme, shot, signIn } from './helpers'
 
 const ROUTES: { path: string, name: string, ready: string | RegExp }[] = [
   { path: '/', name: 'home', ready: /more protein/ },
@@ -13,7 +13,6 @@ const ROUTES: { path: string, name: string, ready: string | RegExp }[] = [
 ]
 
 const MODALS: { name: string, from: string, trigger: string | RegExp, ready: string }[] = [
-  { name: 'modal-food-search', from: '/food', trigger: '+ Log food', ready: 'Verified' },
   { name: 'modal-recipe', from: '/food', trigger: 'New recipe', ready: 'Per serving' },
   { name: 'modal-meal-planner', from: '/food', trigger: 'Meal planner', ready: 'Generate grocery list' },
   { name: 'modal-grocery', from: '/food', trigger: 'Grocery list', ready: 'Pantry' },
@@ -69,11 +68,47 @@ test.describe('interactions', () => {
     await expect(page.getByTestId('kcal-total')).toHaveText('1,360 / 2,600')
     await page.getByRole('button', { name: '+ Log food' }).click()
     await page.getByRole('button', { name: 'Add Granola' }).click()
+    await page.getByRole('button', { name: 'Log 1 item' }).click()
     await expect(page.getByRole('dialog')).toBeHidden()
     await expect(page.getByTestId('kcal-total')).toHaveText('1,475 / 2,600')
 
     await page.getByRole('link', { name: 'Home' }).first().click()
     await expect(page.getByTestId('kcal-remaining')).toHaveText('You can still eat 1125 kcal')
+  })
+
+  test('logging food moves the protein goal and shows on Home', async ({ page }) => {
+    await gotoReady(page, '/goals')
+    const protein = page.getByText('Eat 170g protein daily').locator('..')
+    await expect(protein).toContainText('118g today')
+    await openQuickLog(page)
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Search foods').fill('boiled')
+    await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
+    await expect(dialog.getByText('118g → 148g of 170g')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Log 1 item' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(protein).toContainText('148g today')
+
+    await page.getByRole('link', { name: 'Home' }).first().click()
+    await expect(page.getByRole('region', { name: 'Logged today' }).getByText('Chicken breast, boiled')).toBeVisible()
+  })
+
+  test('logging an activity moves the active calories goal', async ({ page }) => {
+    await gotoReady(page, '/goals')
+    const active = page.getByText('Burn 500 active kcal daily').locator('..')
+    await expect(active).toContainText('341 kcal today')
+    await openQuickLog(page)
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('radio', { name: 'Activity' }).click()
+    await dialog.getByLabel('Search activities').fill('cyc')
+    await dialog.getByRole('radio', { name: /Cycling/ }).click()
+    await expect(dialog.getByLabel('Cycling amount')).toHaveValue('15')
+    await dialog.getByRole('button', { name: 'Log cycling' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(active).not.toContainText('341 kcal today')
+
+    await page.getByRole('link', { name: 'Train' }).first().click()
+    await expect(page.getByText(/15 min · \d+ kcal · logged at/)).toBeVisible()
   })
 
   test('food search filters by query and tab', async ({ page }) => {

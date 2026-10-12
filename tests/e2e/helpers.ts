@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { basename, join, sep } from 'node:path'
 import type { BrowserContext, Page, TestInfo } from '@playwright/test'
 import { type TestUser, sharedUser } from './api'
 
@@ -32,8 +32,19 @@ export async function gotoReady(page: Page, path: string) {
   await page.waitForLoadState('networkidle')
 }
 
+/**
+ * Saves a screenshot into the run folder: specs in `tests/e2e/features/<name>.spec.ts` go to `feature/<name>/`
+ * (the feature being built, to review), everything else to `e2e/` (the full regression set).
+ */
 export async function shot(page: Page, testInfo: TestInfo, screen: string, theme: Theme) {
   const dir = process.env.SCREENSHOT_DIR
   if (!dir) throw new Error('SCREENSHOT_DIR not set — global setup did not run')
-  await page.screenshot({ path: join(dir, `${testInfo.project.name}-${screen}-${theme}.png`), fullPage: true })
+  const feature = testInfo.file.split(sep).includes('features') ? basename(testInfo.file, '.spec.ts') : null
+  const group = feature ? join('feature', feature) : 'e2e'
+  await page.screenshot({ path: join(dir, group, `${testInfo.project.name}-${screen}-${theme}.png`), fullPage: true })
+}
+
+/** Opens the quick log from the sidebar (desktop) or the tab bar's + button (mobile). */
+export async function openQuickLog(page: Page) {
+  await page.getByRole('button', { name: /^(Log|Log food, activity or water)$/ }).filter({ visible: true }).click()
 }

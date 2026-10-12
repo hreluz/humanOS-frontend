@@ -1,12 +1,17 @@
 import * as goalService from '~/services/goalService'
 
 export function useGoals() {
-  const { state: goals, pending } = useServiceState('goals', goalService.getGoals)
-  return { goals, pending }
+  const { state: raw, pending } = useServiceState('goals', goalService.getGoals)
+  const { totals } = useToday()
+
+  // Daily goals track today's log; the rest keep their stored progress.
+  const goals = computed(() => raw.value?.map(g => totals.value ? { ...g, ...dailyGoalProgress(g, totals.value) } : g) ?? null)
+
+  return { goals, raw, pending }
 }
 
 export function useNewGoal() {
-  const { goals } = useGoals()
+  const { raw: goals } = useGoals()
   const { state: templates } = useServiceState('goal-templates', goalService.getGoalTemplates)
   const selectedKey = ref<string | null>(null)
   const target = ref(0)

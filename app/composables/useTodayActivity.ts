@@ -1,11 +1,30 @@
-import * as statsService from '~/services/statsService'
+import * as activityService from '~/services/activityService'
+import * as goalService from '~/services/goalService'
+
+const DEFAULT_STEPS_GOAL = 10000
 
 export function useTodayActivity() {
-  const { state: activity, pending } = useServiceState('today-activity', statsService.getTodayActivity)
+  const { state: day, pending } = useServiceState('activity-day', activityService.getActivityDay)
+  // Raw goals (not useGoals, which depends on this composable) for the steps target.
+  const { state: goals } = useServiceState('goals', goalService.getGoals)
+
+  const today = computed(() => day.value?.today ?? null)
+  const log = computed(() => day.value?.log ?? [])
+
   const steps = computed(() => {
-    if (!activity.value) return null
-    const { steps, stepsGoal } = activity.value
-    return { value: steps, goal: stepsGoal, remaining: Math.max(0, stepsGoal - steps), pct: Math.min(100, Math.round((steps / stepsGoal) * 100)) }
+    if (!today.value) return null
+    const goal = goals.value?.find(g => g.metric === 'steps')?.target ?? DEFAULT_STEPS_GOAL
+    const value = today.value.steps
+    return { value, goal, remaining: Math.max(0, goal - value), pct: metricPct(value, goal) }
   })
-  return { steps, pending }
+
+  async function logActivity(key: string, amount: number, kg: number, kcal?: number) {
+    day.value = await activityService.logActivity(key, amount, kg, kcal)
+  }
+
+  async function logWater(ml: number) {
+    day.value = await activityService.logWater(ml)
+  }
+
+  return { today, log, steps, pending, logActivity, logWater }
 }

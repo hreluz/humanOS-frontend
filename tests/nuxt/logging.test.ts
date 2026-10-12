@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest'
+import type { ActivityDef } from '~/types/activity'
+import type { FoodItem } from '~/types/food'
+import type { Goal } from '~/types/goal'
+
+const chicken: FoodItem = { id: 'c', name: 'Chicken breast, boiled', brand: 'Generic', serving: '100g', per: 100, unit: 'g', step: 10, kcal: 150, p: 30, c: 0, f: 3.2 }
+const egg: FoodItem = { id: 'e', name: 'Egg, boiled', brand: 'Generic', serving: '1 egg', per: 1, unit: 'piece', pieceName: 'egg', step: 1, kcal: 78, p: 6.3, c: 0.6, f: 5.3 }
+const cycling: ActivityDef = { key: 'cycling', label: 'Cycling', icon: '', met: 7.5, unit: 'min', defaultAmount: 15, step: 5 }
+const walking: ActivityDef = { key: 'walking', label: 'Walking', icon: '', met: 3.5, unit: 'steps', defaultAmount: 1000, step: 500 }
+
+describe('scaleFood', () => {
+  it('scales macros to the amount eaten', () => {
+    expect(scaleFood(chicken, 150)).toEqual({ kcal: 225, p: 45, c: 0, f: 4.8 })
+    expect(scaleFood(egg, 2)).toEqual({ kcal: 156, p: 12.6, c: 1.2, f: 10.6 })
+  })
+})
+
+describe('formatPortion', () => {
+  it('formats by unit', () => {
+    expect(formatPortion(chicken, 100)).toBe('100 g')
+    expect(formatPortion(egg, 1)).toBe('1 egg')
+    expect(formatPortion(egg, 2)).toBe('2 eggs')
+    expect(formatPortion({ ...chicken, unit: 'serving', per: 1 }, 1)).toBe('1 serving')
+  })
+})
+
+describe('portionUnit', () => {
+  it('pluralises pieces and servings, not weights', () => {
+    expect(portionUnit(chicken, 96)).toBe('g')
+    expect(portionUnit(egg, 1)).toBe('egg')
+    expect(portionUnit(egg, 3)).toBe('eggs')
+  })
+})
+
+describe('parseAmount', () => {
+  it('reads typed amounts', () => {
+    expect(parseAmount('96')).toBe(96)
+    expect(parseAmount(' 96.5 ')).toBe(96.5)
+    expect(parseAmount('96,5')).toBe(96.5)
+    expect(parseAmount('1,001')).toBe(1001)
+    expect(parseAmount('.5')).toBe(0.5)
+  })
+
+  it('rejects empty, zero and non-numeric input', () => {
+    for (const t of ['', '0', 'abc', '-5', '1.2.3']) expect(parseAmount(t)).toBeNull()
+  })
+
+  it('rounds integers and caps at max', () => {
+    expect(parseAmount('2.6', { integer: true })).toBe(3)
+    expect(parseAmount('0.2', { integer: true })).toBeNull()
+    expect(parseAmount('250000', { max: AMOUNT_LIMITS.steps })).toBe(100000)
+  })
+})
+
+describe('burnedKcal', () => {
+  it('uses MET × kg × hours for timed activities', () => {
+    expect(burnedKcal(cycling, 15, 82.1)).toBe(154)
+  })
+
+  it('uses a per-step estimate for walking', () => {
+    expect(burnedKcal(walking, 1000, 82.1)).toBe(41)
+  })
+})
+
+describe('mealForHour', () => {
+  it('picks the meal for the time of day', () => {
+    expect(mealForHour(8)).toBe('breakfast')
+    expect(mealForHour(13)).toBe('lunch')
+    expect(mealForHour(19)).toBe('dinner')
+    expect(mealForHour(23)).toBe('snacks')
+    expect(mealForHour(2)).toBe('snacks')
+  })
+})
+
+describe('stepAmount', () => {
+  it('never goes below one step', () => {
+    expect(stepAmount(10, 10, -1)).toBe(10)
+    expect(stepAmount(0.5, 0.25, 1)).toBe(0.8) // rounds to one decimal
+  })
+})
+
+describe('dailyGoalProgress', () => {
+  const totals = { protein: 118, kcal: 1360, steps: 6200, activeKcal: 341, waterMl: 1750 }
+  const goal = (g: Partial<Goal>): Goal => ({ id: 'g', label: '', sub: 'stored', pct: 50, accent: 'blue', ...g })
+
+  it('computes progress from today for daily goals', () => {
+    expect(dailyGoalProgress(goal({ metric: 'protein', target: 170 }), totals)).toEqual({ pct: 69, sub: '118g today' })
+    expect(dailyGoalProgress(goal({ metric: 'waterMl', target: 3000 }), totals)).toEqual({ pct: 58, sub: '1.8L today' })
+    expect(dailyGoalProgress(goal({ metric: 'steps', target: 5000 }), totals).pct).toBe(100)
+  })
+
+  it('keeps stored progress for other goals', () => {
+    expect(dailyGoalProgress(goal({}), totals)).toEqual({ pct: 50, sub: 'stored' })
+  })
+})
