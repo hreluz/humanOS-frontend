@@ -44,3 +44,7 @@ export const dividerCls = 'border-black/[0.06] dark:border-white/10'
 export const bgCls = 'bg-canvas dark:bg-black'
 export const authLinkCls = 'font-semibold text-ink dark:text-white underline underline-offset-2'
 export const linkBlueCls = 'text-accent-blue dark:text-accent-blue-dark'
+export const focusRingCls = 'outline-none focus-visible:ring-2 focus-visible:ring-ink/40 dark:focus-visible:ring-white/50'
+// Segmented control option: 44px tall on touch screens, compact from sm.
+export const segmentCls = 'min-h-11 sm:min-h-9 rounded-lg text-[13px] font-semibold'
+export const segmentOnCls = 'bg-ink text-white dark:bg-white dark:text-black'

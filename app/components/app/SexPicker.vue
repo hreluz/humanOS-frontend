@@ -5,25 +5,36 @@ const OPTIONS: { value: Sex, label: string }[] = [{ value: 'male', label: 'Male'
 
 defineProps<{ error?: string }>()
 const model = defineModel<Sex | ''>({ required: true })
+const { tabindex, onKeydown } = useRadioGroup<Sex | ''>(OPTIONS.map(o => o.value), model)
+const id = useId()
 </script>
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <span class="text-[12.5px] font-semibold" :class="inkSoftCls">Sex</span>
-    <div class="grid grid-cols-2 gap-1 bg-canvas dark:bg-white/[0.06] rounded-xl p-1" role="radiogroup" aria-label="Sex">
+    <span :id="`${id}-label`" class="text-[12.5px] font-semibold" :class="inkSoftCls">Sex</span>
+    <div
+      class="grid grid-cols-2 gap-1 bg-canvas dark:bg-white/[0.06] rounded-xl p-1"
+      :class="error ? 'ring-1 ring-accent-coral' : ''"
+      role="radiogroup"
+      :aria-labelledby="`${id}-label`"
+      :aria-invalid="!!error"
+      :aria-describedby="error ? `${id}-error` : undefined"
+      @keydown="onKeydown"
+    >
       <button
         v-for="o in OPTIONS"
         :key="o.value"
         type="button"
         role="radio"
         :aria-checked="model === o.value"
-        class="text-center py-2 rounded-lg text-[12.5px] font-semibold"
-        :class="model === o.value ? 'bg-ink text-white dark:bg-white dark:text-black' : inkSoftCls"
+        :tabindex="tabindex(o.value)"
+        class="text-center"
+        :class="[segmentCls, focusRingCls, model === o.value ? segmentOnCls : inkSoftCls]"
         @click="model = o.value"
       >
         {{ o.label }}
       </button>
     </div>
-    <span v-if="error" class="text-[12px] text-accent-coral">{{ error }}</span>
+    <span v-if="error" :id="`${id}-error`" class="text-[12px] text-accent-coral">{{ error }}</span>
   </div>
 </template>

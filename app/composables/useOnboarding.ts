@@ -16,6 +16,7 @@ export function useOnboarding() {
   const formError = ref<string>()
 
   const statsValid = computed(() => profileStatsValid(form))
+  const missingHint = computed(() => missingFieldsHint(missingProfileFields(form)))
   const canSubmit = computed(() => step.value === 0 || statsValid.value)
 
   async function next() {
@@ -53,5 +54,5 @@ export function useOnboarding() {
 
   const back = () => { step.value = 0 }
 
-  return { step, form, errors, formError, firstName, goalOnly, statsValid, canSubmit, submitting, next, back }
+  return { step, form, errors, formError, firstName, goalOnly, statsValid, missingHint, canSubmit, submitting, next, back }
 }

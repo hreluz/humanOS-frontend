@@ -30,6 +30,9 @@ export function useProfileForm() {
   const formError = ref<string>()
 
   const valid = computed(() => profileStatsValid(form))
+  const missingHint = computed(() => missingFieldsHint(missingProfileFields(form)))
+  // Read by /profile to confirm the save once the modal closes.
+  const saved = useState('profile-saved', () => false)
 
   /** PUTs the full profile (the backend also records a weight entry) and keeps the goal on this browser. */
   async function save() {
@@ -41,6 +44,7 @@ export function useProfileForm() {
       await saveProfile(toPayload(form))
       setGoal(form.goal)
       await refresh()
+      saved.value = true
       return true
     }
     catch (err) {
@@ -57,5 +61,5 @@ export function useProfileForm() {
     }
   }
 
-  return { form, errors, formError, valid, saving, save }
+  return { form, errors, formError, missingHint, valid, saving, save }
 }

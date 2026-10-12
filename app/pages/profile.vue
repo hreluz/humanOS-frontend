@@ -7,6 +7,18 @@ const { latest, unit, target, load } = useWeighIns()
 const { open } = useModal()
 useAsyncData('load:weight-entries', () => load().then(() => true))
 
+// Set by Edit profile after a successful save; shown briefly.
+const saved = useState('profile-saved', () => false)
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+watch(saved, (value) => {
+  clearTimeout(savedTimer)
+  if (value) savedTimer = setTimeout(() => { saved.value = false }, 4000)
+}, { immediate: true })
+onBeforeUnmount(() => {
+  clearTimeout(savedTimer)
+  saved.value = false
+})
+
 const capitalize = (s: string) => s[0]!.toUpperCase() + s.slice(1)
 
 const about = computed(() => {
@@ -34,6 +46,7 @@ const about = computed(() => {
         <div class="text-sm truncate" :class="inkFaintCls">{{ user.email }}</div>
       </div>
     </div>
+    <AuthNotice v-if="saved" tone="success" class="mb-4">Profile updated</AuthNotice>
     <div class="flex items-baseline justify-between mb-2">
       <h2 class="text-xs font-bold tracking-wide uppercase" :class="inkFaintCls">About you</h2>
       <button type="button" class="text-[13.5px] font-semibold" :class="linkBlueCls" aria-label="Edit profile" @click="open('editProfile')">Edit</button>

@@ -79,7 +79,7 @@ for (const theme of THEMES) {
       await page.getByRole('button', { name: 'Continue' }).click()
       await expect(page.getByRole('button', { name: 'Start using HumanOS' })).toBeDisabled()
       await fillMetricStats(page, { weight: '70', target: '74' })
-      await page.getByRole('radio', { name: 'Very active' }).click()
+      await page.getByRole('radio', { name: /^Very active/ }).click()
       await shot(page, testInfo, 'onboarding-stats', theme)
     })
   })
@@ -132,7 +132,7 @@ test.describe('auth flows against the API', () => {
     await page.getByRole('radio', { name: /Build muscle/ }).click()
     await page.getByRole('button', { name: 'Continue' }).click()
     await fillMetricStats(page, { weight: '70', target: '74' })
-    await page.getByRole('radio', { name: 'Very active' }).click()
+    await page.getByRole('radio', { name: /^Very active/ }).click()
     const put = profilePut(page)
     await page.getByRole('button', { name: 'Start using HumanOS' }).click()
 
@@ -153,8 +153,8 @@ test.describe('auth flows against the API', () => {
     await page.getByLabel('Birth date').fill('1990-04-15')
     await page.getByRole('radio', { name: 'Male', exact: true }).click()
     await page.getByRole('radio', { name: 'Imperial' }).click()
-    await page.getByLabel('Height (ft)').fill('5')
-    await page.getByLabel('Height (in)').fill('11')
+    await page.getByLabel('Height, feet').fill('5')
+    await page.getByLabel('Height, inches').fill('11')
     await page.getByLabel('Weight', { exact: true }).fill('180')
     await page.getByLabel('Target weight').fill('170')
     const put = profilePut(page)
@@ -175,6 +175,7 @@ test.describe('auth flows against the API', () => {
     await fillMetricStats(page, { weight: '70', target: '65' })
     await page.getByLabel('Birth date').fill('')
     await expect(page.getByRole('button', { name: 'Start using HumanOS' })).toBeDisabled()
+    await expect(page.getByText('Add your birth date to continue.')).toBeVisible()
   })
 
   test('a user with an API profile but no goal on this browser picks a goal, then lands on /', async ({ page, context, baseURL }) => {
@@ -233,9 +234,10 @@ test.describe('auth flows against the API', () => {
       await expect(page.getByText('Moderate')).toBeVisible()
       await page.getByRole('button', { name: 'Edit profile' }).click()
       const dialog = page.getByRole('dialog')
-      await dialog.getByRole('radio', { name: 'Very active' }).click()
+      await dialog.getByRole('radio', { name: /^Very active/ }).click()
       await dialog.getByRole('button', { name: 'Save changes' }).click()
       await expect(dialog).toBeHidden()
+      await expect(page.getByRole('status').filter({ hasText: 'Profile updated' })).toBeVisible()
       await expect(page.getByText('Very active')).toBeVisible()
 
       await page.reload()

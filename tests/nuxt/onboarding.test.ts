@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProfileForm } from '~/types/profile'
-import { convertProfileForm, profileStatsValid, toPayload, toProfileErrors } from '~/utils/onboarding'
+import { convertProfileForm, missingFieldsHint, missingProfileFields, profileStatsValid, toPayload, toProfileErrors } from '~/utils/onboarding'
 
 const metricForm = (): ProfileForm => ({
   goal: 'lose', unitSystem: 'metric', birthDate: '1994-04-15', sex: 'male',
@@ -91,5 +91,34 @@ describe('toProfileErrors', () => {
 
   it('returns null for anything but a 422', () => {
     expect(toProfileErrors({ statusCode: 500 }, 'metric')).toBeNull()
+  })
+})
+
+describe('missingProfileFields / missingFieldsHint', () => {
+  const empty = (): ProfileForm => ({ ...metricForm(), birthDate: '', sex: '', heightCm: '', weight: '', target: '' })
+
+  it('lists every missing field in form order', () => {
+    expect(missingProfileFields(empty())).toEqual(['birth date', 'sex', 'height', 'weight', 'target weight'])
+  })
+
+  it('only asks for a target when the goal needs one', () => {
+    expect(missingProfileFields({ ...empty(), goal: 'maintain' })).not.toContain('target weight')
+  })
+
+  it('reads imperial height from ft + in', () => {
+    const form = { ...metricForm(), unitSystem: 'imperial' as const, heightCm: '', heightFt: '', heightIn: '' }
+    expect(missingProfileFields(form)).toEqual(['height'])
+    expect(missingProfileFields({ ...form, heightFt: '5' })).toEqual([])
+  })
+
+  it('is empty for a complete form', () => {
+    expect(missingProfileFields(metricForm())).toEqual([])
+  })
+
+  it('builds a readable hint', () => {
+    expect(missingFieldsHint([])).toBe('')
+    expect(missingFieldsHint(['birth date'])).toBe('Add your birth date to continue.')
+    expect(missingFieldsHint(['birth date', 'sex'])).toBe('Add your birth date and sex to continue.')
+    expect(missingFieldsHint(['birth date', 'sex', 'height'])).toBe('Add your birth date, sex and height to continue.')
   })
 })

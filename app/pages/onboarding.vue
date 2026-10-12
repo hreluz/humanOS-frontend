@@ -2,7 +2,10 @@
 definePageMeta({ layout: 'auth' })
 useHead({ title: 'Set up · HumanOS' })
 
-const { step, form, errors, formError, firstName, goalOnly, canSubmit, submitting, next, back } = useOnboarding()
+const { step, form, errors, formError, firstName, goalOnly, missingHint, canSubmit, submitting, next, back } = useOnboarding()
+const hintId = useId()
+// Explains a disabled submit on the stats step.
+const hint = computed(() => step.value === 1 ? missingHint.value : '')
 </script>
 
 <template>
@@ -28,7 +31,8 @@ const { step, form, errors, formError, firstName, goalOnly, canSubmit, submittin
 
     <div class="flex gap-2.5 mt-1">
       <button v-if="step === 1" type="button" class="h-11 px-5 rounded-full border border-black/10 dark:border-white/15 text-[14.5px] font-semibold" :class="inkCls" @click="back">Back</button>
-      <AuthPrimaryButton :disabled="!canSubmit || submitting">{{ step === 0 ? 'Continue' : 'Start using HumanOS' }}</AuthPrimaryButton>
+      <AuthPrimaryButton :disabled="!canSubmit || submitting" :aria-describedby="hint ? hintId : undefined">{{ step === 0 ? 'Continue' : 'Start using HumanOS' }}</AuthPrimaryButton>
     </div>
+    <p v-if="hint" :id="hintId" class="-mt-2 text-[12.5px] text-center" :class="inkSoftCls" aria-live="polite">{{ hint }}</p>
   </form>
 </template>

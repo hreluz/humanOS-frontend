@@ -8,12 +8,12 @@ export const ONBOARD_GOALS: OnboardGoal[] = [
   { key: 'fitness', label: 'Get fitter', hint: 'Endurance, steps, sleep', icon: 'M13 3l-8 11h6l-1 7 8-11h-6l1-7z' },
 ]
 
-export const ACTIVITY_LEVELS: { value: ActivityLevel, label: string }[] = [
-  { value: 'sedentary', label: 'Sedentary' },
-  { value: 'lightly_active', label: 'Light' },
-  { value: 'moderately_active', label: 'Moderate' },
-  { value: 'very_active', label: 'Very active' },
-  { value: 'extra_active', label: 'Extra active' },
+export const ACTIVITY_LEVELS: { value: ActivityLevel, label: string, hint: string }[] = [
+  { value: 'sedentary', label: 'Sedentary', hint: 'Desk job, little exercise' },
+  { value: 'lightly_active', label: 'Light', hint: 'Exercise 1–3 days a week' },
+  { value: 'moderately_active', label: 'Moderate', hint: 'Exercise 3–5 days a week' },
+  { value: 'very_active', label: 'Very active', hint: 'Hard exercise 6–7 days a week' },
+  { value: 'extra_active', label: 'Extra active', hint: 'Physical job or training twice a day' },
 ]
 
 export function goalLabelFor(key: GoalKey | undefined) {
@@ -28,9 +28,29 @@ export function goalNeedsTarget(key: GoalKey) {
 const heightOf = (form: ProfileForm) =>
   form.unitSystem === 'imperial' ? ftInToInches(+form.heightFt, +form.heightIn) : +form.heightCm
 
-/** Birth date, sex, height and weight are required; target weight only for goals that need one. Ranges are checked by the API. */
+/**
+ * Fields still needed before the form can be sent, in form order (e.g. `['birth date', 'sex']`).
+ * Birth date, sex, height and weight are required; target weight only for goals that need one. Ranges are checked by the API.
+ */
+export function missingProfileFields(form: ProfileForm) {
+  const missing: string[] = []
+  if (!form.birthDate) missing.push('birth date')
+  if (!form.sex) missing.push('sex')
+  if (!(heightOf(form) > 0)) missing.push('height')
+  if (!(+form.weight > 0)) missing.push('weight')
+  if (goalNeedsTarget(form.goal) && !(+form.target > 0)) missing.push('target weight')
+  return missing
+}
+
 export function profileStatsValid(form: ProfileForm) {
-  return !!form.birthDate && !!form.sex && heightOf(form) > 0 && +form.weight > 0 && (!goalNeedsTarget(form.goal) || +form.target > 0)
+  return missingProfileFields(form).length === 0
+}
+
+/** ['birth date', 'sex'] → "Add your birth date and sex to continue." */
+export function missingFieldsHint(missing: string[]) {
+  if (!missing.length) return ''
+  const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing.at(-1)}`
+  return `Add your ${list} to continue.`
 }
 
 /** Form → PUT /v1/profile body. Imperial height is total inches; goals without a target send the current weight as target. */
