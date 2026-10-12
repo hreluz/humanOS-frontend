@@ -159,13 +159,37 @@ test.describe('interactions', () => {
     await expect(dialog.getByText('525 kcal')).toBeVisible()
 
     await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
-    await expect(dialog.getByText('15 g · 90 kcal')).toBeVisible()
+    await expect(dialog.getByText('My food · 15 g · 90 kcal')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
 
     await page.getByRole('button', { name: '+ Log food' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
     await expect(page.getByRole('dialog').getByText('tahini', { exact: true })).toBeVisible()
+  })
+
+  test('ingredient picker: focus, helper text and Escape steps back', async ({ page }) => {
+    await gotoReady(page, '/food')
+    await page.getByRole('button', { name: 'New recipe' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: '+ Add ingredient' }).click()
+    await expect(dialog.getByLabel('Search ingredients')).toBeFocused()
+    await dialog.getByRole('button', { name: '+ Create ingredient' }).click()
+    await expect(dialog.getByLabel('Ingredient name')).toBeFocused()
+    await expect(dialog.getByText('Add a name and calories to save.')).toBeVisible()
+    await dialog.getByLabel('Ingredient name').fill('Tahini')
+    await expect(dialog.getByText('Add calories to save.')).toBeVisible()
+    await dialog.getByLabel('Calories (kcal)').fill('90')
+    await expect(dialog.getByText(/to save\.$/)).toBeHidden()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog.getByLabel('Search ingredients')).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(dialog.getByText('Per serving')).toBeVisible()
+    await expect(dialog.getByLabel('Search ingredients')).toBeHidden()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
   })
 
   test('ingredient created from the Food page is saved to My Foods', async ({ page }) => {
@@ -184,7 +208,8 @@ test.describe('interactions', () => {
 
     await page.getByRole('button', { name: 'New recipe' }).click()
     await page.getByRole('dialog').getByRole('button', { name: '+ Add ingredient' }).click()
-    await expect(page.getByRole('dialog').getByText('15 g · 90 kcal')).toBeVisible()
+    await expect(page.getByRole('dialog').getByText('My food · 15 g · 90 kcal')).toBeVisible()
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
     await page.getByRole('button', { name: '+ Log food' }).click()
