@@ -38,7 +38,7 @@ export const INITIAL_MY_FOODS: FoodItem[] = [
 
 export const INITIAL_RECIPE: RecipeDraft = {
   name: 'Chicken & Rice Bowl',
-  servings: 2,
+  servings: 1,
   ingredients: [
     { name: 'Chicken breast, grilled', kcal: 330, p: 62, c: 0, f: 7.2 },
     { name: 'Jasmine rice, cooked', kcal: 390, p: 8, c: 84, f: 1 },

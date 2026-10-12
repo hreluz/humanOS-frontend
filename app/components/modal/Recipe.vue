@@ -51,7 +51,7 @@ async function onSave() {
         <div class="text-sm" :class="inkSoftCls">Makes</div>
         <div class="flex items-center gap-3">
           <button type="button" aria-label="Fewer servings" class="w-6 h-6 rounded-full shadow-sm flex items-center justify-center text-[15px]" :class="[cardCls, inkCls]" @click="changeServings(-1)">–</button>
-          <span class="text-[15px] font-semibold" :class="inkCls">{{ recipe.servings }} servings</span>
+          <span class="text-[15px] font-semibold" :class="inkCls">{{ recipe.servings }} {{ recipe.servings === 1 ? 'serving' : 'servings' }}</span>
           <button type="button" aria-label="More servings" class="w-6 h-6 rounded-full bg-ink flex items-center justify-center text-[15px] text-white" @click="changeServings(1)">+</button>
         </div>
       </div>
