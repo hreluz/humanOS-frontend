@@ -48,3 +48,11 @@ export async function shot(page: Page, testInfo: TestInfo, screen: string, theme
 export async function openQuickLog(page: Page) {
   await page.getByRole('button', { name: /^(Log|Log food, activity or water)$/ }).filter({ visible: true }).click()
 }
+
+/** Adds catalog ingredients on the new recipe page by searching each name and picking its exact match. */
+export async function addIngredients(page: Page, ...names: string[]) {
+  for (const name of names) {
+    await page.getByLabel('Add an ingredient').fill(name)
+    await page.getByRole('button', { name: new RegExp(`^${name}`) }).first().click()
+  }
+}

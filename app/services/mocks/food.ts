@@ -36,15 +36,7 @@ export const INITIAL_MY_FOODS: FoodItem[] = [
   { id: 'my_bowl', name: 'My chicken & rice bowl', brand: 'Custom recipe', serving: '1 bowl', per: 1, unit: 'serving', step: 1, kcal: 540, p: 38, c: 52, f: 14 },
 ]
 
-export const INITIAL_RECIPE: RecipeDraft = {
-  name: 'Chicken & Rice Bowl',
-  servings: 1,
-  ingredients: [
-    { name: 'Chicken breast, grilled', kcal: 330, p: 62, c: 0, f: 7.2 },
-    { name: 'Jasmine rice, cooked', kcal: 390, p: 8, c: 84, f: 1 },
-    { name: 'Olive oil', kcal: 240, p: 0, c: 0, f: 28 },
-  ],
-}
+export const INITIAL_RECIPE: RecipeDraft = { name: '', servings: 1, ingredients: [] }
 
 export const DAILY_TARGETS: DailyTargets = { kcal: 2600, protein: 170, carbs: 260, fat: 80 }
 
