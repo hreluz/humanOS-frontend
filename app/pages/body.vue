@@ -5,6 +5,7 @@ definePageMeta({ tab: 'body' })
 
 const { view, selected, equipment, exercises, loading, select, toggleEquipment } = useBodyMap()
 const { hasExercise, addExercise } = useTraining()
+const { openPhotos } = useExercisePhotos()
 
 const VIEWS: { key: BodyView, label: string }[] = [{ key: 'front', label: 'Front' }, { key: 'back', label: 'Back' }]
 const MUSCLES = Object.keys(MUSCLE_LABELS) as MuscleKey[]
@@ -103,7 +104,18 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
         No exercises for this filter.
       </div>
       <ul v-else class="flex flex-col gap-3" :aria-busy="loading" :aria-label="`${MUSCLE_LABELS[selected]} exercises`">
-        <li v-for="ex in exercises" :key="ex.id" class="rounded-2xl px-5 py-4 shadow-xs flex gap-4 items-center" :class="cardCls">
+        <li v-for="ex in exercises" :key="ex.id" class="rounded-2xl px-4 sm:px-5 py-4 shadow-xs flex gap-3.5 sm:gap-4 items-center" :class="cardCls">
+          <button
+            v-if="ex.photos.length"
+            type="button"
+            class="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-white border"
+            :class="[dividerCls, focusRingCls]"
+            :aria-label="`View photos of ${ex.name}`"
+            @click="openPhotos(ex)"
+          >
+            <img :src="ex.photos[0]!.src" alt="" loading="lazy" class="w-full h-full object-cover">
+            <span class="absolute bottom-1 right-1 rounded-md bg-black/70 text-white text-[10.5px] font-semibold px-1.5 leading-[18px]">{{ ex.photos.length }}</span>
+          </button>
           <div class="flex-1 min-w-0">
             <div class="flex flex-wrap items-baseline gap-x-2">
               <h3 class="text-[15.5px] font-bold" :class="inkCls">{{ ex.name }}</h3>

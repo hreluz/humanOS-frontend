@@ -53,6 +53,26 @@ describe('useBodyMap', () => {
   })
 })
 
+describe('exercise photos', () => {
+  it('gives gym exercises photos of similar machines after their own start and end shots', async () => {
+    const map = useBodyMap()
+    map.select('lats')
+    await settle()
+    const pulldown = map.exercises.value.find(e => e.name === 'Lat Pulldown')!
+    expect(pulldown.photos.length).toBeGreaterThan(2)
+    expect(pulldown.photos.slice(0, 2).map(p => p.caption)).toEqual(['Start', 'End'])
+    expect(pulldown.photos[2]!.caption).toBe('Close-Grip Front Lat Pulldown · start')
+    for (const p of pulldown.photos) expect(p.src).toMatch(/^https:\/\/raw\.githubusercontent\.com\/yuhonas\/free-exercise-db\/main\/exercises\/[\w-]+\/[01]\.jpg$/)
+  })
+
+  it('leaves photos empty for an exercise without a match', async () => {
+    const map = useBodyMap()
+    map.select('shoulders')
+    await settle()
+    expect(map.exercises.value.find(e => e.name === 'Wall Handstand Hold')!.photos).toEqual([])
+  })
+})
+
 describe('useTraining.addExercise', () => {
   it('appends a library exercise to today\'s workout', async () => {
     clearNuxtState()

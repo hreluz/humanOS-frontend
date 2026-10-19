@@ -1,7 +1,7 @@
-import type { EquipmentKey, ExerciseDef, MuscleKey, Workout } from '~/types/training'
+import type { EquipmentKey, ExerciseDef, ExercisePhoto, MuscleKey, Workout } from '~/types/training'
 import { EQUIPMENT_LABELS } from '~/utils/muscles'
 import { delay } from './mocks/delay'
-import { EXERCISES } from './mocks/exercises'
+import { EXERCISES, type MockExercise } from './mocks/exercises'
 import { TODAY_WORKOUT } from './mocks/training'
 
 // Module-scoped copy stands in for the backend; callers only ever get clones.
@@ -15,10 +15,27 @@ export async function getTodayWorkout(): Promise<Workout> {
   return structuredClone(workout)
 }
 
+/** Exercise photos come from free-exercise-db (public domain): two per exercise, start and end position. */
+export const EXERCISE_PHOTO_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises'
+
+/** `Triceps_Pushdown_-_Rope_Attachment` → `Triceps Pushdown, Rope Attachment` */
+const photoIdLabel = (id: string) => id.replace(/_-_/g, ', ').replace(/_/g, ' ')
+
+function toPhotos(photoIds: string[]): ExercisePhoto[] {
+  return photoIds.flatMap((id, i) => {
+    const [start, end] = i === 0 ? ['Start', 'End'] : [`${photoIdLabel(id)} · start`, `${photoIdLabel(id)} · end`]
+    return [{ src: `${EXERCISE_PHOTO_BASE}/${id}/0.jpg`, caption: start }, { src: `${EXERCISE_PHOTO_BASE}/${id}/1.jpg`, caption: end }]
+  })
+}
+
+function toExercise({ photoIds, ...rest }: MockExercise): ExerciseDef {
+  return { ...rest, photos: toPhotos(photoIds) }
+}
+
 /** Library exercises that mainly work `muscle`, limited to the given equipment. */
 export async function getExercises(muscle: MuscleKey, equipment: EquipmentKey[]): Promise<ExerciseDef[]> {
   await delay()
-  return structuredClone(EXERCISES.filter(e => e.muscle === muscle && equipment.includes(e.equipment)))
+  return EXERCISES.filter(e => e.muscle === muscle && equipment.includes(e.equipment)).map(toExercise)
 }
 
 /** Appends a library exercise to today's workout; returns the updated workout. */

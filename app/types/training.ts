@@ -25,6 +25,11 @@ export type EquipmentKey = 'gym' | 'dumbbell' | 'bodyweight'
 
 export type BodyView = 'front' | 'back'
 
+export interface ExercisePhoto {
+  src: string
+  caption: string
+}
+
 /** An exercise from the library, recommended by the muscle it mainly works. */
 export interface ExerciseDef {
   id: string
@@ -32,4 +37,6 @@ export interface ExerciseDef {
   muscle: MuscleKey
   equipment: EquipmentKey
   cue: string
+  /** The exercise's start and end positions first, then close variants (similar machines). */
+  photos: ExercisePhoto[]
 }
