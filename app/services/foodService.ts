@@ -1,13 +1,16 @@
 import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, Macros, MealKey, MealPlan, NewFoodInput, RecipeDraft } from '~/types/food'
 import { buildFood, formatPortion, isSameDay, matchesQuery, scaleFood } from '~/utils/logging'
 import { delay } from './mocks/delay'
-import { DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
+import { DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_RECENT_FOOD_IDS, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
 import { INGREDIENTS } from './mocks/ingredients'
 import { type MockRecipe, RECIPES } from './mocks/recipes'
 
 // Module-scoped copies stand in for the backend; callers only ever get clones.
 const foodLog: FoodLog = structuredClone(INITIAL_FOOD_LOG)
 const myFoods: FoodItem[] = RECIPES.map(recipeToFood)
+let recentIds: string[] = [...INITIAL_RECENT_FOOD_IDS]
+
+const RECENT_LIMIT = 20
 
 /** Today's food log; entries logged to another day are kept but left out. Seeded items (no time) count as today. */
 function todayLog(): FoodLog {
@@ -27,6 +30,8 @@ export async function addFoodsToLog(entries: { item: FoodItem, amount: number }[
   for (const { item, amount } of entries) {
     foodLog[meal].push({ name: item.name, portion: formatPortion(item, amount), ...scaleFood(item, amount), loggedAt })
   }
+  const logged = entries.map(e => e.item.id)
+  recentIds = [...new Set([...logged.reverse(), ...recentIds])]
   return todayLog()
 }
 
@@ -37,10 +42,18 @@ export async function getDailyTargets(): Promise<DailyTargets> {
 
 export async function searchFoods(query: string, tab: FoodSearchTab): Promise<FoodItem[]> {
   await delay()
-  let results = tab === 'myfoods' ? myFoods : INGREDIENTS
-  if (tab === 'verified') results = INGREDIENTS.filter(i => i.brand !== 'Generic')
-  results = results.filter(i => matchesQuery(i.name, query))
-  return structuredClone(results)
+  return structuredClone(foodsFor(tab).filter(i => matchesQuery(i.name, query)))
+}
+
+/** The list a search tab draws from; All puts the user's own foods (newest first) ahead of the catalog. */
+function foodsFor(tab: FoodSearchTab): FoodItem[] {
+  if (tab === 'myfoods') return myFoods
+  if (tab === 'verified') return INGREDIENTS.filter(i => i.brand !== 'Generic')
+  if (tab === 'recent') {
+    const all = [...myFoods, ...INGREDIENTS]
+    return recentIds.map(id => all.find(i => i.id === id)).filter(i => !!i).slice(0, RECENT_LIMIT)
+  }
+  return [...myFoods.slice().reverse(), ...INGREDIENTS]
 }
 
 /** Everything usable as a recipe ingredient: the user's own foods first, then the catalog. Recipes are left out. */

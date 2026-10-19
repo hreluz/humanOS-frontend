@@ -17,7 +17,7 @@ export const RECIPES: MockRecipe[] = [
   r('yogurt_parfait', 'Greek yogurt parfait', 1, [['fage_yogurt', 1], ['granola', 30], ['blueberries', 75], ['honey', 7]]),
   r('pb_banana_toast', 'PB banana toast', 1, [['dkb_bread', 2], ['peanut_butter', 16], ['banana', 1]]),
   r('avocado_toast', 'Avocado toast with egg', 2, [['dkb_bread', 2], ['avocado', 1], ['egg_boiled', 2], ['tomato', 1]]),
-  r('protein_shake', 'Banana protein shake', 1, [['whey', 1], ['banana', 1], ['milk_whole', 240], ['peanut_butter', 16]]),
+  r('protein_shake', 'Peanut butter banana shake', 1, [['whey', 1], ['banana', 1], ['milk_whole', 240], ['peanut_butter', 16]]),
   r('tofu_scramble', 'Tofu scramble', 2, [['tofu', 300], ['spinach', 60], ['onion', 50], ['bell_pepper', 1], ['olive_oil', 10]]),
 
   // Lunch & dinner
