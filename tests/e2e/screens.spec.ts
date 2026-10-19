@@ -5,6 +5,7 @@ const ROUTES: { path: string, name: string, ready: string | RegExp }[] = [
   { path: '/', name: 'home', ready: /more protein/ },
   { path: '/food', name: 'food', ready: 'Breakfast' },
   { path: '/train', name: 'train', ready: 'Bench Press' },
+  { path: '/body', name: 'body', ready: 'Tap a muscle to see exercises' },
   { path: '/stats', name: 'stats', ready: 'Resting HR' },
   { path: '/goals', name: 'goals', ready: 'Eat 170g protein daily' },
   { path: '/goals/new', name: 'new-goal', ready: 'What do you want to track?' },

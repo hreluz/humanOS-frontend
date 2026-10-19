@@ -18,13 +18,14 @@ export const NAV_DEFS: { key: TabKey, label: string, to: string, icon: string }[
   { key: 'home', label: 'Home', to: '/', icon: 'M4 11l8-7 8 7v9a2 2 0 01-2 2H6a2 2 0 01-2-2z' },
   { key: 'food', label: 'Food', to: '/food', icon: 'M12 2v20M6 8h12M4 14h16' },
   { key: 'train', label: 'Train', to: '/train', icon: 'M4 12h4m8 0h4M8 8v8m8-8v8' },
+  { key: 'body', label: 'Body', to: '/body', icon: 'M12 6a2 2 0 100-4 2 2 0 000 4zM5 9l7-1 7 1M12 8v6m0 0l-3 7m3-7l3 7' },
   { key: 'stats', label: 'Stats', to: '/stats', icon: 'M4 20V10m6 10V4m6 16v-7' },
   { key: 'goals', label: 'Goals', to: '/goals', icon: 'M12 2v6m0 8v6m10-10h-6M8 12H2' },
   { key: 'profile', label: 'Profile', to: '/profile', icon: 'M20 21a8 8 0 10-16 0M12 11a4 4 0 100-8 4 4 0 000 8z' },
 ]
 
 export const SCREEN_TITLES: Record<TabKey, string> = {
-  home: 'Home', food: 'Food', train: 'Training', stats: 'Stats', goals: 'Goals',
+  home: 'Home', food: 'Food', train: 'Training', body: 'Body', stats: 'Stats', goals: 'Goals',
   profile: 'Profile', weeklyReview: 'Weekly Review',
 }
 

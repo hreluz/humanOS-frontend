@@ -17,3 +17,19 @@ export interface Workout {
   exercises: Exercise[]
   cardio: CardioSession[]
 }
+
+export type MuscleKey = 'chest' | 'shoulders' | 'biceps' | 'triceps' | 'forearms' | 'abs' | 'obliques'
+  | 'traps' | 'lats' | 'lowerBack' | 'glutes' | 'quads' | 'hamstrings' | 'calves'
+
+export type EquipmentKey = 'gym' | 'dumbbell' | 'bodyweight'
+
+export type BodyView = 'front' | 'back'
+
+/** An exercise from the library, recommended by the muscle it mainly works. */
+export interface ExerciseDef {
+  id: string
+  name: string
+  muscle: MuscleKey
+  equipment: EquipmentKey
+  cue: string
+}
