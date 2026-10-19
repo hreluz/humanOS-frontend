@@ -141,6 +141,21 @@ export function useQuickLog() {
     if (entry?.ingredients) entry.ingredients = entry.ingredients.filter(i => i.item.id !== ingredientId)
   }
 
+  /** Recipe ingredients taken out of this entry, at the recipe's amounts, so they can be added back. */
+  function removedIngredients(entry: FoodLogEntry) {
+    if (!entry.ingredients) return []
+    return recipePortion(entry.item, entry.amount).filter(o => !entry.ingredients!.some(i => i.item.id === o.item.id))
+  }
+
+  function restoreIngredient(entryId: string, ingredientId: string) {
+    const entry = entryFor(entryId)
+    const original = entry && recipePortion(entry.item, entry.amount)
+    if (!entry?.ingredients || !original) return
+    // Back in the recipe's order, not at the end.
+    entry.ingredients = original.flatMap(o =>
+      o.item.id === ingredientId ? [o] : entry.ingredients!.filter(i => i.item.id === o.item.id))
+  }
+
   function resetIngredients(entryId: string) {
     const entry = entryFor(entryId)
     if (entry?.ingredients) entry.ingredients = recipePortion(entry.item, entry.amount)
@@ -244,7 +259,7 @@ export function useQuickLog() {
     tab, search, saving, kg,
     now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
     basket, meal, inBasket, toggleFood, stepFood, setFoodAmount,
-    recipeAmount, isEdited, setIngredientAmount, stepIngredient, removeIngredient, resetIngredients,
+    recipeAmount, isEdited, setIngredientAmount, stepIngredient, removeIngredient, removedIngredients, restoreIngredient, resetIngredients,
     activityQuery, activityResults, activity, activityAmount, activityKcal, selectActivity, stepActivity,
     estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,
     waterMl, stepWater,
