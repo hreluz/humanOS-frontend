@@ -2,7 +2,8 @@
 const {
   tab, search, saving, kg,
   now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
-  basket, meal, inBasket, toggleFood, stepFood,
+  basket, meal, inBasket, toggleFood, stepFood, setFoodAmount,
+  recipeAmount, isEdited, setIngredientAmount, stepIngredient, removeIngredient, resetIngredients,
   activityQuery, activityResults, activity, activityAmount, selectActivity, stepActivity,
   estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,
   waterMl, stepWater,
@@ -17,6 +18,14 @@ const otherDay = computed(() => {
   const label = formatDayLabel(at.value, now.value)
   return label === 'Yesterday' ? 'yesterday' : label
 })
+// Which recipes in the basket have their ingredient list open.
+const expanded = ref(new Set<string>())
+const toggleExpanded = (id: string) => {
+  const next = new Set(expanded.value)
+  if (!next.delete(id)) next.add(id)
+  expanded.value = next
+}
+const anyExpanded = computed(() => basket.value.some(b => b.ingredients && expanded.value.has(b.item.id)))
 const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-center gap-3 text-left border-2', focusRingCls, on ? 'border-ink dark:border-white' : 'border-transparent', bgCls]
 </script>
 
@@ -134,23 +143,71 @@ const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-cent
 
     <!-- Pinned: amounts, the goals this moves, and the action -->
     <div class="shrink-0 border-t px-5 pt-4 pb-5 flex flex-col gap-4" :class="dividerCls">
-      <!-- On phones the details scroll so the list above keeps its room; the action stays put. -->
-      <div class="flex flex-col gap-4 max-h-[30vh] md:max-h-none overflow-auto -m-1 p-1">
+      <!-- On phones the details scroll so the list above keeps its room; the action stays put. An open recipe takes more of it. -->
+      <div class="flex flex-col gap-4 md:max-h-none overflow-auto -m-1 p-1" :class="anyExpanded ? 'max-h-[55vh]' : 'max-h-[30vh]'">
         <template v-if="tab === 'food'">
-          <div v-if="basket.length" class="flex flex-col gap-2 max-h-[140px] overflow-auto -m-1 p-1">
-            <div v-for="b in basket" :key="b.item.id" class="flex items-center gap-3">
-              <div class="flex-1 min-w-0">
-                <div class="text-[14px] font-semibold truncate" :class="inkCls">{{ b.item.name }}</div>
-                <div class="text-xs" :class="inkFaintCls">{{ scaleFood(b.item, b.amount).kcal }} kcal · {{ scaleFood(b.item, b.amount).p }}g protein</div>
+          <div v-if="basket.length" class="flex flex-col gap-2 overflow-auto -m-1 p-1" :class="anyExpanded ? 'max-h-[260px]' : 'max-h-[140px]'">
+            <div v-for="b in basket" :key="b.item.id">
+              <div class="flex items-center gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="text-[14px] font-semibold truncate" :class="inkCls">{{ b.item.name }}</div>
+                  <div class="text-xs" :class="inkFaintCls">{{ entryMacros(b).kcal }} kcal · {{ entryMacros(b).p }}g protein</div>
+                </div>
+                <AppStepper
+                  :model-value="b.amount"
+                  :unit="portionUnit(b.item, b.amount)"
+                  :label="b.item.name"
+                  :integer="b.item.unit === 'piece' || b.item.unit === 'serving'"
+                  :max="AMOUNT_LIMITS[b.item.unit]"
+                  @update:model-value="n => setFoodAmount(b.item.id, n)"
+                  @step="dir => stepFood(b.item.id, dir)"
+                />
               </div>
-              <AppStepper
-                v-model="b.amount"
-                :unit="portionUnit(b.item, b.amount)"
-                :label="b.item.name"
-                :integer="b.item.unit === 'piece' || b.item.unit === 'serving'"
-                :max="AMOUNT_LIMITS[b.item.unit]"
-                @step="dir => stepFood(b.item.id, dir)"
-              />
+              <template v-if="b.ingredients">
+                <button
+                  type="button"
+                  :aria-expanded="expanded.has(b.item.id)"
+                  :aria-controls="`ingredients-${b.item.id}`"
+                  class="mt-1 py-1 flex items-center gap-1 text-xs font-semibold rounded"
+                  :class="[inkSoftCls, focusRingCls]"
+                  @click="toggleExpanded(b.item.id)"
+                >
+                  {{ isEdited(b) ? 'Ingredients, edited' : 'Ingredients' }}
+                  <AppIcon :path="ICONS.chevronUp" class="w-3 h-3" :class="!expanded.has(b.item.id) && 'rotate-180'" />
+                </button>
+                <div v-if="expanded.has(b.item.id)" :id="`ingredients-${b.item.id}`" class="mt-1.5 ml-1 pl-3 border-l-2 flex flex-col gap-2" :class="dividerCls">
+                  <div v-for="ing in b.ingredients" :key="ing.item.id" class="flex items-center gap-2">
+                    <div class="flex-1 min-w-0">
+                      <div class="text-[13.5px] truncate" :class="inkCls">{{ ing.item.name }}</div>
+                      <div v-if="formatAmountChange(ing.item, recipeAmount(b, ing.item.id) ?? 0, ing.amount)" class="text-xs tabular-nums" :class="inkFaintCls">
+                        {{ formatAmountChange(ing.item, recipeAmount(b, ing.item.id) ?? 0, ing.amount) }} from the recipe
+                      </div>
+                    </div>
+                    <AppStepper
+                      :model-value="ing.amount"
+                      :unit="portionUnit(ing.item, ing.amount)"
+                      :label="ing.item.name"
+                      :max="AMOUNT_LIMITS[ing.item.unit]"
+                      @update:model-value="n => setIngredientAmount(b.item.id, ing.item.id, n)"
+                      @step="dir => stepIngredient(b.item.id, ing.item.id, dir)"
+                    />
+                    <button
+                      type="button"
+                      :aria-label="`Remove ${ing.item.name}`"
+                      class="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[15px]"
+                      :class="[bgCls, inkSoftCls, focusRingCls]"
+                      @click="removeIngredient(b.item.id, ing.item.id)"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div v-if="!b.ingredients.length" class="text-xs" :class="inkSoftCls">Nothing left in this recipe. Use the recipe again or remove it from the list.</div>
+                  <div v-if="isEdited(b)" class="text-xs" :class="inkFaintCls">
+                    Changed from the recipe, just for this log.
+                    <button type="button" class="font-semibold" :class="[linkBlueCls, focusRingCls]" @click="resetIngredients(b.item.id)">Use recipe</button>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
           <div v-if="basket.length" class="grid grid-cols-4 gap-1 p-1 rounded-xl" :class="bgCls" role="radiogroup" aria-label="Meal">

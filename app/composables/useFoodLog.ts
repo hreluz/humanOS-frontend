@@ -1,4 +1,4 @@
-import type { FoodItem, MealKey } from '~/types/food'
+import type { FoodLogEntry, MealKey } from '~/types/food'
 import * as foodService from '~/services/foodService'
 
 const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner', 'snacks']
@@ -29,7 +29,7 @@ export function useFoodLog() {
     }
   })
 
-  async function addFoods(entries: { item: FoodItem, amount: number }[], meal: MealKey, loggedAt?: string) {
+  async function addFoods(entries: FoodLogEntry[], meal: MealKey, loggedAt?: string) {
     log.value = await foodService.addFoodsToLog(entries, meal, loggedAt)
   }
 

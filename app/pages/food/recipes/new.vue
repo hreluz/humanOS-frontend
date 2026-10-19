@@ -5,7 +5,7 @@ definePageMeta({ tab: 'food' })
 
 const {
   recipe, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing,
-  refreshCatalog, changeServings, addIngredient, removeIngredient, startCreate, save,
+  refreshCatalog, changeServings, addIngredient, stepIngredient, removeIngredient, startCreate, save,
 } = useRecipe()
 
 const searchInput = ref<HTMLInputElement>()
@@ -100,12 +100,21 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
           </div>
 
           <ul v-if="recipe.ingredients.length" class="flex flex-col">
-            <li v-for="(ing, idx) in recipe.ingredients" :key="idx" class="flex items-center gap-3 py-2.5 border-t first:border-t-0" :class="dividerCls">
-              <div class="flex-1 min-w-0">
-                <div class="text-[14.5px] font-semibold" :class="inkCls">{{ ing.name }}</div>
-                <div class="text-[12.5px]" :class="inkSoftCls">{{ ing.kcal }} kcal · {{ ing.p }}g protein · {{ ing.c }}g carbs</div>
+            <!-- On phones the stepper drops below the name so long names keep their line. -->
+            <li v-for="(ing, idx) in recipe.ingredients" :key="ing.item.id" class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 py-2.5 border-t first:border-t-0" :class="dividerCls">
+              <div class="basis-full sm:basis-auto flex-1 min-w-0">
+                <div class="text-[14.5px] font-semibold" :class="inkCls">{{ ing.item.name }}</div>
+                <div class="text-[12.5px]" :class="inkSoftCls">{{ scaleFood(ing.item, ing.amount).kcal }} kcal · {{ scaleFood(ing.item, ing.amount).p }}g protein · {{ scaleFood(ing.item, ing.amount).c }}g carbs</div>
               </div>
-              <button ref="removeBtns" type="button" :aria-label="`Remove ${ing.name}`" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-[17px]" :class="[bgCls, inkSoftCls, focusRingCls, hitSlopCls, pressCls]" @click="remove(idx)">×</button>
+              <AppStepper
+                v-model="ing.amount"
+                :unit="portionUnit(ing.item, ing.amount)"
+                :label="ing.item.name"
+                :max="AMOUNT_LIMITS[ing.item.unit]"
+                class="ml-auto sm:ml-0"
+                @step="dir => stepIngredient(idx, dir)"
+              />
+              <button ref="removeBtns" type="button" :aria-label="`Remove ${ing.item.name}`" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-[17px]" :class="[bgCls, inkSoftCls, focusRingCls, hitSlopCls, pressCls]" @click="remove(idx)">×</button>
             </li>
           </ul>
           <p v-else class="text-[13.5px] py-1" :class="inkSoftCls">Add the first ingredient below.</p>

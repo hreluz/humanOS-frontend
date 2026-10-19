@@ -1,5 +1,5 @@
 import type { ActivityDef, ActivityUnit } from '~/types/activity'
-import type { FoodItem, Macros, MealKey, NewFoodInput, PortionUnit } from '~/types/food'
+import type { FoodItem, FoodLogEntry, Macros, MealKey, NewFoodInput, PortionUnit, RecipeIngredient } from '~/types/food'
 
 const round1 = (n: number) => Math.round(n * 10) / 10
 const num = (n: number) => round1(n).toLocaleString('en-US')
@@ -8,6 +8,32 @@ const num = (n: number) => round1(n).toLocaleString('en-US')
 export function scaleFood(item: FoodItem, amount: number): Macros {
   const k = amount / item.per
   return { kcal: Math.round(item.kcal * k), p: round1(item.p * k), c: round1(item.c * k), f: round1(item.f * k) }
+}
+
+/** Total macros of a list of ingredients. */
+export function sumMacros(ingredients: RecipeIngredient[]): Macros {
+  const sum = ingredients.map(i => scaleFood(i.item, i.amount))
+    .reduce((a, m) => ({ kcal: a.kcal + m.kcal, p: a.p + m.p, c: a.c + m.c, f: a.f + m.f }), { kcal: 0, p: 0, c: 0, f: 0 })
+  return { kcal: Math.round(sum.kcal), p: round1(sum.p), c: round1(sum.c), f: round1(sum.f) }
+}
+
+/** A recipe's ingredients scaled to `servings` of it; empty for anything that isn't a recipe. */
+export function recipePortion(item: FoodItem, servings: number): RecipeIngredient[] {
+  if (!item.recipe) return []
+  const k = servings / item.recipe.servings
+  return item.recipe.ingredients.map(i => ({ item: i.item, amount: round1(i.amount * k) }))
+}
+
+/** Macros of a basket line: from its ingredients when it's a recipe, else from the amount. */
+export function entryMacros(entry: FoodLogEntry): Macros {
+  return entry.ingredients ? sumMacros(entry.ingredients) : scaleFood(entry.item, entry.amount)
+}
+
+/** "+20 g", "−1 egg"; empty when unchanged. */
+export function formatAmountChange(item: FoodItem, from: number, to: number) {
+  const d = round1(to - from)
+  if (!d) return ''
+  return `${d > 0 ? '+' : '−'}${formatPortion(item, Math.abs(d))}`
 }
 
 /** True when every word of `query` appears in `name`; an empty query matches everything. */
@@ -69,9 +95,9 @@ export function mealForHour(hour: number): MealKey {
   return 'snacks'
 }
 
-/** Next stepper value, never below one step. */
+/** Next stepper value, never below one step (or below an amount already smaller than a step, like half an avocado). */
 export function stepAmount(amount: number, step: number, dir: 1 | -1) {
-  return Math.max(step, round1(amount + dir * step))
+  return Math.max(Math.min(step, amount), round1(amount + dir * step))
 }
 
 /** Local midnight of `d`. */

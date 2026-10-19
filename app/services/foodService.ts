@@ -1,5 +1,5 @@
-import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, Macros, MealKey, MealPlan, NewFoodInput, RecipeDraft } from '~/types/food'
-import { buildFood, formatPortion, isSameDay, matchesQuery, scaleFood } from '~/utils/logging'
+import type { DailyTargets, FoodItem, FoodLog, FoodLogEntry, FoodSearchTab, MealKey, MealPlan, NewFoodInput, RecipeDraft, RecipeIngredient } from '~/types/food'
+import { buildFood, entryMacros, formatPortion, isSameDay, matchesQuery, sumMacros } from '~/utils/logging'
 import { delay } from './mocks/delay'
 import { DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_RECENT_FOOD_IDS, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
 import { INGREDIENTS } from './mocks/ingredients'
@@ -24,11 +24,21 @@ export async function getFoodLog(): Promise<FoodLog> {
   return todayLog()
 }
 
-/** Logs `amount` of `item` (in the item's unit) to a meal at `loggedAt` (ISO, default now); returns today's log. */
-export async function addFoodsToLog(entries: { item: FoodItem, amount: number }[], meal: MealKey, loggedAt = new Date().toISOString()): Promise<FoodLog> {
+/**
+ * Logs `amount` of `item` (in the item's unit) to a meal at `loggedAt` (ISO, default now); returns today's log.
+ * A recipe is logged with the ingredients of the portion eaten, so edits made while logging are kept; the saved recipe is left alone.
+ */
+export async function addFoodsToLog(entries: FoodLogEntry[], meal: MealKey, loggedAt = new Date().toISOString()): Promise<FoodLog> {
   await delay()
-  for (const { item, amount } of entries) {
-    foodLog[meal].push({ name: item.name, portion: formatPortion(item, amount), ...scaleFood(item, amount), loggedAt })
+  for (const entry of entries) {
+    const { item, amount, ingredients } = entry
+    foodLog[meal].push({
+      name: item.name,
+      portion: formatPortion(item, amount),
+      ...entryMacros(entry),
+      loggedAt,
+      ...ingredients && { ingredients: ingredients.map(i => ({ ingredientId: i.item.id, name: i.item.name, amount: i.amount, unit: i.item.unit })) },
+    })
   }
   const logged = entries.map(e => e.item.id)
   recentIds = [...new Set([...logged.reverse(), ...recentIds])]
@@ -59,7 +69,7 @@ function foodsFor(tab: FoodSearchTab): FoodItem[] {
 /** Everything usable as a recipe ingredient: the user's own foods first, then the catalog. Recipes are left out. */
 export async function getIngredientOptions(): Promise<FoodItem[]> {
   await delay()
-  return structuredClone([...myFoods.filter(i => i.brand !== 'Custom recipe').reverse(), ...INGREDIENTS])
+  return structuredClone([...myFoods.filter(i => !i.recipe).reverse(), ...INGREDIENTS])
 }
 
 /** Saves a food the user typed in to My foods. */
@@ -77,24 +87,25 @@ export async function getRecipeDraft(): Promise<RecipeDraft> {
 
 export async function saveRecipe(recipe: RecipeDraft): Promise<FoodItem> {
   await delay()
-  const sum = recipe.ingredients.reduce((a, i) => ({ kcal: a.kcal + i.kcal, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { kcal: 0, p: 0, c: 0, f: 0 })
-  const food = recipeFood('recipe_' + Date.now(), recipe.name, recipe.servings, sum)
+  const food = recipeFood('recipe_' + Date.now(), recipe.name, recipe.servings, recipe.ingredients.map(i => ({ item: { ...i.item }, amount: i.amount })))
   myFoods.push(food)
   return structuredClone(food)
 }
 
-/** A recipe as a loggable My Foods item: one serving of its summed macros. */
-function recipeFood(id: string, name: string, servings: number, sum: Macros): FoodItem {
+/** A recipe as a loggable My Foods item: one serving of its summed macros, plus what the whole batch is made of. */
+function recipeFood(id: string, name: string, servings: number, ingredients: RecipeIngredient[]): FoodItem {
+  const sum = sumMacros(ingredients)
   const per = (n: number) => Math.round(n / servings)
-  return { id, name, brand: 'Custom recipe', serving: '1 serving', per: 1, unit: 'serving', step: 1, kcal: per(sum.kcal), p: per(sum.p), c: per(sum.c), f: per(sum.f) }
+  return {
+    id, name, brand: 'Custom recipe', serving: '1 serving', per: 1, unit: 'serving', step: 1,
+    kcal: per(sum.kcal), p: per(sum.p), c: per(sum.c), f: per(sum.f),
+    recipe: { servings, ingredients },
+  }
 }
 
 function recipeToFood(recipe: MockRecipe): FoodItem {
-  const sum = recipe.ingredients.reduce((a, { ingredientId, amount }) => {
-    const m = scaleFood(INGREDIENTS.find(i => i.id === ingredientId)!, amount)
-    return { kcal: a.kcal + m.kcal, p: a.p + m.p, c: a.c + m.c, f: a.f + m.f }
-  }, { kcal: 0, p: 0, c: 0, f: 0 })
-  return recipeFood(recipe.id, recipe.name, recipe.servings, sum)
+  const ingredients = recipe.ingredients.map(({ ingredientId, amount }) => ({ item: INGREDIENTS.find(i => i.id === ingredientId)!, amount }))
+  return recipeFood(recipe.id, recipe.name, recipe.servings, ingredients)
 }
 
 export async function getPlannerDays(): Promise<string[]> {

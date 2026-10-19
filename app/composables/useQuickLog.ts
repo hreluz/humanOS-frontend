@@ -1,4 +1,4 @@
-import type { FoodItem, MealKey } from '~/types/food'
+import type { FoodItem, FoodLogEntry, MealKey } from '~/types/food'
 import * as activityService from '~/services/activityService'
 
 export type QuickLogTab = 'food' | 'activity' | 'water'
@@ -78,8 +78,8 @@ export function useQuickLog() {
     now.value = new Date()
   }
 
-  // Food: a basket of items, each with an amount in the item's unit.
-  const basket = ref<{ item: FoodItem, amount: number }[]>([])
+  // Food: a basket of items, each with an amount in the item's unit. Recipes also carry the ingredients of that amount, editable.
+  const basket = ref<FoodLogEntry[]>([])
   // The meal follows the chosen time until the user picks one.
   const mealChoice = ref<MealKey | null>(null)
   const meal = computed({
@@ -87,15 +87,63 @@ export function useQuickLog() {
     set: (m: MealKey) => { mealChoice.value = m },
   })
   const inBasket = (id: string) => basket.value.some(b => b.item.id === id)
+  const entryFor = (id: string) => basket.value.find(b => b.item.id === id)
 
   function toggleFood(item: FoodItem) {
     if (inBasket(item.id)) basket.value = basket.value.filter(b => b.item.id !== item.id)
-    else basket.value.push({ item, amount: item.per })
+    else basket.value.push({ item, amount: item.per, ...item.recipe && { ingredients: recipePortion(item, item.per) } })
+  }
+
+  /** The recipe's own amount of an ingredient for this entry's servings; undefined if it isn't in the recipe. */
+  const recipeAmount = (entry: FoodLogEntry, ingredientId: string) =>
+    recipePortion(entry.item, entry.amount).find(i => i.item.id === ingredientId)?.amount
+
+  /** True when the ingredients no longer match the recipe for this many servings. */
+  function isEdited(entry: FoodLogEntry) {
+    if (!entry.ingredients) return false
+    const original = recipePortion(entry.item, entry.amount)
+    return original.length !== entry.ingredients.length
+      || entry.ingredients.some(i => recipeAmount(entry, i.item.id) !== i.amount)
+  }
+
+  // More or fewer servings scale the ingredients too; edits keep their proportions.
+  function setFoodAmount(id: string, amount: number) {
+    const entry = entryFor(id)
+    if (!entry || amount === entry.amount) return
+    if (entry.ingredients) {
+      const k = amount / entry.amount
+      entry.ingredients = isEdited(entry)
+        ? entry.ingredients.map(i => ({ item: i.item, amount: Math.round(i.amount * k * 10) / 10 }))
+        : recipePortion(entry.item, amount)
+    }
+    entry.amount = amount
   }
 
   function stepFood(id: string, dir: 1 | -1) {
-    const entry = basket.value.find(b => b.item.id === id)
-    if (entry) entry.amount = stepAmount(entry.amount, entry.item.step, dir)
+    const entry = entryFor(id)
+    if (entry) setFoodAmount(id, stepAmount(entry.amount, entry.item.step, dir))
+  }
+
+  const ingredientIn = (entryId: string, ingredientId: string) => entryFor(entryId)?.ingredients?.find(i => i.item.id === ingredientId)
+
+  function setIngredientAmount(entryId: string, ingredientId: string, amount: number) {
+    const ing = ingredientIn(entryId, ingredientId)
+    if (ing) ing.amount = amount
+  }
+
+  function stepIngredient(entryId: string, ingredientId: string, dir: 1 | -1) {
+    const ing = ingredientIn(entryId, ingredientId)
+    if (ing) ing.amount = stepAmount(ing.amount, ing.item.step, dir)
+  }
+
+  function removeIngredient(entryId: string, ingredientId: string) {
+    const entry = entryFor(entryId)
+    if (entry?.ingredients) entry.ingredients = entry.ingredients.filter(i => i.item.id !== ingredientId)
+  }
+
+  function resetIngredients(entryId: string) {
+    const entry = entryFor(entryId)
+    if (entry?.ingredients) entry.ingredients = recipePortion(entry.item, entry.amount)
   }
 
   // Activity: one at a time, minutes or steps.
@@ -137,7 +185,7 @@ export function useQuickLog() {
   /** What saving would add to each daily metric. */
   const delta = computed<Partial<DailyTotals>>(() => {
     if (tab.value === 'food') {
-      const sum = basket.value.map(b => scaleFood(b.item, b.amount)).reduce((a, m) => ({ kcal: a.kcal + m.kcal, p: a.p + m.p }), { kcal: 0, p: 0 })
+      const sum = basket.value.map(entryMacros).reduce((a, m) => ({ kcal: a.kcal + m.kcal, p: a.p + m.p }), { kcal: 0, p: 0 })
       return { kcal: sum.kcal, protein: sum.p }
     }
     if (tab.value === 'activity') {
@@ -168,7 +216,7 @@ export function useQuickLog() {
   })
 
   const canSubmit = computed(() => !saving.value && (
-    tab.value === 'food' ? basket.value.length > 0 : tab.value === 'activity' ? !!activity.value : waterMl.value > 0
+    tab.value === 'food' ? basket.value.length > 0 && basket.value.every(b => !b.ingredients || b.ingredients.length > 0) : tab.value === 'activity' ? !!activity.value : waterMl.value > 0
   ))
 
   const submitLabel = computed(() => {
@@ -195,7 +243,8 @@ export function useQuickLog() {
   return {
     tab, search, saving, kg,
     now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
-    basket, meal, inBasket, toggleFood, stepFood,
+    basket, meal, inBasket, toggleFood, stepFood, setFoodAmount,
+    recipeAmount, isEdited, setIngredientAmount, stepIngredient, removeIngredient, resetIngredients,
     activityQuery, activityResults, activity, activityAmount, activityKcal, selectActivity, stepActivity,
     estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,
     waterMl, stepWater,

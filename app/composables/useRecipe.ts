@@ -22,10 +22,18 @@ export function useRecipe() {
     recipe.value.servings = Math.max(1, Math.min(12, recipe.value.servings + delta))
   }
 
+  // Adding something already listed means more of it, not a second row.
   function addIngredient(item: FoodItem) {
-    recipe.value?.ingredients.push({ name: item.name, kcal: item.kcal, p: item.p, c: item.c, f: item.f })
+    const existing = recipe.value?.ingredients.find(i => i.item.id === item.id)
+    if (existing) existing.amount = stepAmount(existing.amount, item.step, 1)
+    else recipe.value?.ingredients.push({ item, amount: item.per })
     query.value = ''
     pickerMode.value = 'list'
+  }
+
+  function stepIngredient(index: number, dir: 1 | -1) {
+    const ing = recipe.value?.ingredients[index]
+    if (ing) ing.amount = stepAmount(ing.amount, ing.item.step, dir)
   }
 
   function removeIngredient(index: number) {
@@ -36,8 +44,7 @@ export function useRecipe() {
     pickerMode.value = 'create'
   }
 
-  const totals = computed(() => (recipe.value?.ingredients ?? [])
-    .reduce((a, i) => ({ kcal: a.kcal + i.kcal, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { kcal: 0, p: 0, c: 0, f: 0 }))
+  const totals = computed(() => sumMacros(recipe.value?.ingredients ?? []))
 
   const perServing = computed(() => {
     const servings = recipe.value?.servings ?? 1
@@ -68,6 +75,6 @@ export function useRecipe() {
 
   return {
     recipe, catalog, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing,
-    refreshCatalog, changeServings, addIngredient, removeIngredient, startCreate, save,
+    refreshCatalog, changeServings, addIngredient, stepIngredient, removeIngredient, startCreate, save,
   }
 }

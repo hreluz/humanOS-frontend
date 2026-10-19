@@ -10,6 +10,15 @@ export interface LoggedFood {
   portion?: string
   /** ISO time it was logged through the quick log; seeded items have none. */
   loggedAt?: string
+  /** For a recipe: what went into the portion eaten, as logged (may differ from the saved recipe). */
+  ingredients?: LoggedIngredient[]
+}
+
+export interface LoggedIngredient {
+  ingredientId: string
+  name: string
+  amount: number
+  unit: PortionUnit
 }
 
 export type FoodLog = Record<MealKey, LoggedFood[]>
@@ -35,6 +44,8 @@ export interface FoodItem extends Macros {
   step: number
   /** Name of one piece, e.g. 'egg' → "2 eggs". */
   pieceName?: string
+  /** Only on recipes: what the whole batch is made of. */
+  recipe?: { servings: number, ingredients: RecipeIngredient[] }
 }
 
 /** What the user types when creating a food that isn't in the catalog. */
@@ -46,8 +57,17 @@ export interface NewFoodInput extends Macros {
 
 export type FoodSearchTab = 'all' | 'recent' | 'myfoods' | 'verified'
 
-export interface RecipeIngredient extends Macros {
-  name: string
+/** `amount` of `item`, in the item's unit. */
+export interface RecipeIngredient {
+  item: FoodItem
+  amount: number
+}
+
+/** One basket line in the quick log; a recipe carries the ingredients of the portion being logged. */
+export interface FoodLogEntry {
+  item: FoodItem
+  amount: number
+  ingredients?: RecipeIngredient[]
 }
 
 export interface RecipeDraft {

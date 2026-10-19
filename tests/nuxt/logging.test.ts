@@ -77,6 +77,40 @@ describe('stepAmount', () => {
     expect(stepAmount(10, 10, -1)).toBe(10)
     expect(stepAmount(0.5, 0.25, 1)).toBe(0.8) // rounds to one decimal
   })
+
+  it('keeps an amount already under one step when stepping down', () => {
+    expect(stepAmount(0.5, 1, -1)).toBe(0.5)
+    expect(stepAmount(0.5, 1, 1)).toBe(1.5)
+  })
+})
+
+describe('recipes', () => {
+  const bowl: FoodItem = {
+    id: 'bowl', name: 'Chicken & egg bowl', brand: 'Custom recipe', serving: '1 serving', per: 1, unit: 'serving', step: 1, kcal: 303, p: 36, c: 1, f: 8,
+    recipe: { servings: 2, ingredients: [{ item: chicken, amount: 300 }, { item: egg, amount: 2 }] },
+  }
+
+  it('sums ingredient macros', () => {
+    expect(sumMacros([{ item: chicken, amount: 150 }, { item: egg, amount: 2 }])).toEqual({ kcal: 381, p: 57.6, c: 1.2, f: 15.4 })
+    expect(sumMacros([])).toEqual({ kcal: 0, p: 0, c: 0, f: 0 })
+  })
+
+  it('scales a recipe to the servings eaten', () => {
+    expect(recipePortion(bowl, 1)).toEqual([{ item: chicken, amount: 150 }, { item: egg, amount: 1 }])
+    expect(recipePortion(bowl, 3)).toEqual([{ item: chicken, amount: 450 }, { item: egg, amount: 3 }])
+    expect(recipePortion(chicken, 1)).toEqual([])
+  })
+
+  it('takes a recipe entry\'s macros from its ingredients', () => {
+    expect(entryMacros({ item: bowl, amount: 1, ingredients: [{ item: chicken, amount: 200 }] })).toEqual(scaleFood(chicken, 200))
+    expect(entryMacros({ item: chicken, amount: 150 })).toEqual(scaleFood(chicken, 150))
+  })
+
+  it('formats how far an amount moved from the recipe', () => {
+    expect(formatAmountChange(chicken, 150, 170)).toBe('+20 g')
+    expect(formatAmountChange(egg, 2, 1)).toBe('−1 egg')
+    expect(formatAmountChange(chicken, 150, 150)).toBe('')
+  })
 })
 
 describe('dailyGoalProgress', () => {
