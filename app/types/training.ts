@@ -18,8 +18,16 @@ export interface Workout {
   cardio: CardioSession[]
 }
 
-export type MuscleKey = 'chest' | 'shoulders' | 'biceps' | 'triceps' | 'forearms' | 'abs' | 'obliques'
-  | 'traps' | 'lats' | 'lowerBack' | 'glutes' | 'quads' | 'hamstrings' | 'calves'
+export type MuscleKey
+  = | 'upperChest' | 'lowerChest' | 'serratus'
+    | 'frontDelts' | 'sideDelts' | 'rearDelts'
+    | 'biceps' | 'tricepsLong' | 'tricepsLateral' | 'forearmFlexors' | 'forearmExtensors'
+    | 'upperAbs' | 'lowerAbs' | 'obliques'
+    | 'upperTraps' | 'midTraps' | 'lowerTraps' | 'lats' | 'lowerBack'
+    | 'gluteMax' | 'gluteMed' | 'hipFlexors' | 'adductors' | 'quads'
+    | 'hamstringsInner' | 'hamstringsOuter' | 'gastrocnemius' | 'soleus' | 'tibialis'
+
+export type MuscleArea = 'chest' | 'shoulders' | 'arms' | 'core' | 'back' | 'legs'
 
 export type EquipmentKey = 'gym' | 'dumbbell' | 'bodyweight'
 
@@ -30,11 +38,14 @@ export interface ExercisePhoto {
   caption: string
 }
 
-/** An exercise from the library, recommended by the muscle it mainly works. */
+/** An exercise from the library, tagged with the exact muscles it trains. */
 export interface ExerciseDef {
   id: string
   name: string
-  muscle: MuscleKey
+  /** Muscles the exercise mainly trains. */
+  primary: MuscleKey[]
+  /** Muscles that assist. */
+  secondary: MuscleKey[]
   equipment: EquipmentKey
   cue: string
   /** The exercise's start and end positions first, then close variants (similar machines). */

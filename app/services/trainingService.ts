@@ -32,10 +32,17 @@ function toExercise({ photoIds, ...rest }: MockExercise): ExerciseDef {
   return { ...rest, photos: toPhotos(photoIds) }
 }
 
-/** Library exercises that mainly work `muscle`, limited to the given equipment. */
+/**
+ * Library exercises that train `muscle` with the given equipment: the ones that target it first, then the ones it assists in.
+ * Targeting exercises are ordered most direct first: the muscle listed first, then the fewest other main muscles.
+ */
 export async function getExercises(muscle: MuscleKey, equipment: EquipmentKey[]): Promise<ExerciseDef[]> {
   await delay()
-  return EXERCISES.filter(e => e.muscle === muscle && equipment.includes(e.equipment)).map(toExercise)
+  const available = EXERCISES.filter(e => equipment.includes(e.equipment))
+  const targeting = available
+    .filter(e => e.primary.includes(muscle))
+    .sort((a, b) => a.primary.indexOf(muscle) - b.primary.indexOf(muscle) || a.primary.length - b.primary.length)
+  return [...targeting, ...available.filter(e => e.secondary.includes(muscle))].map(toExercise)
 }
 
 /** Appends a library exercise to today's workout; returns the updated workout. */

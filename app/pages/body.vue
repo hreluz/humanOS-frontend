@@ -8,7 +8,23 @@ const { hasExercise, addExercise } = useTraining()
 const { openPhotos } = useExercisePhotos()
 
 const VIEWS: { key: BodyView, label: string }[] = [{ key: 'front', label: 'Front' }, { key: 'back', label: 'Back' }]
-const MUSCLES = Object.keys(MUSCLE_LABELS) as MuscleKey[]
+
+/** Exercises that target the picked muscle, then the ones where it only assists. */
+const sections = computed(() => {
+  const muscle = selected.value
+  if (!muscle) return []
+  const label = MUSCLE_LABELS[muscle]
+  return [
+    { key: 'targets', title: `Targets ${label.toLowerCase()}`, items: exercises.value.filter(e => e.primary.includes(muscle)) },
+    { key: 'assists', title: `Also works ${label.toLowerCase()}`, items: exercises.value.filter(e => !e.primary.includes(muscle)) },
+  ].filter(section => section.items.length)
+})
+
+/** Every muscle an exercise trains, primary first, for the card's "Works:" line. */
+const worksList = (ex: ExerciseDef) => [
+  ...ex.primary.map(muscle => ({ muscle, primary: true })),
+  ...ex.secondary.map(muscle => ({ muscle, primary: false })),
+]
 
 // On phones the results sit below the figure, so bring them into view after a pick.
 const resultsHeading = ref<HTMLElement>()
@@ -52,23 +68,31 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
           {{ v.label }}
         </button>
       </div>
-      <div class="mx-auto w-full max-w-[170px] md:max-w-[260px]">
+      <div class="mx-auto w-full max-w-[140px] md:max-w-[240px]">
         <AppBodyFigure :view="view" :selected="selected" @select="pick" />
       </div>
       <p class="text-[12.5px] text-center" :class="inkFaintCls">Tap a muscle on the body or pick one below.</p>
-      <div class="flex flex-wrap gap-1.5 justify-center" aria-label="Muscles">
-        <button
-          v-for="m in MUSCLES"
-          :key="m"
-          type="button"
-          class="min-h-9 sm:min-h-7 px-2.5 rounded-full text-[12px] font-semibold"
-          :class="[focusRingCls, selected === m ? 'bg-accent-coral text-white dark:bg-accent-coral-dark' : [bgCls, inkSoftCls]]"
-          :aria-pressed="selected === m"
-          @click="pick(m)"
-        >
-          {{ MUSCLE_LABELS[m] }}
-        </button>
+      <div class="flex flex-col gap-2.5">
+        <div v-for="group in MUSCLE_AREAS" :key="group.area" role="group" :aria-label="group.label">
+          <div class="text-[11px] font-bold tracking-wide uppercase mb-1" :class="inkFaintCls">{{ group.label }}</div>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="m in group.muscles"
+              :key="m"
+              type="button"
+              class="min-h-9 sm:min-h-7 px-2.5 rounded-full text-[12px] font-semibold"
+              :class="[focusRingCls, selected === m ? 'bg-accent-coral text-white dark:bg-accent-coral-dark' : [bgCls, inkSoftCls]]"
+              :aria-pressed="selected === m"
+              @click="pick(m)"
+            >
+              {{ MUSCLE_LABELS[m] }}
+            </button>
+          </div>
+        </div>
       </div>
+      <p class="text-[11px]" :class="inkFaintCls">
+        Body map: <a href="https://github.com/vulovix/body-muscles" target="_blank" rel="noopener" class="underline underline-offset-2">body-muscles</a> by Ivan Vulović (Apache-2.0)
+      </p>
     </section>
 
     <div class="flex flex-col gap-3.5">
@@ -103,46 +127,60 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
       <div v-else-if="!exercises.length" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
         No exercises for this filter.
       </div>
-      <ul v-else class="flex flex-col gap-3" :aria-busy="loading" :aria-label="`${MUSCLE_LABELS[selected]} exercises`">
-        <li v-for="ex in exercises" :key="ex.id" class="rounded-2xl px-4 sm:px-5 py-4 shadow-xs flex gap-3.5 sm:gap-4 items-center" :class="cardCls">
-          <button
-            v-if="ex.photos.length"
-            type="button"
-            class="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-white border"
-            :class="[dividerCls, focusRingCls]"
-            :aria-label="`View photos of ${ex.name}`"
-            @click="openPhotos(ex)"
-          >
-            <img :src="ex.photos[0]!.src" alt="" loading="lazy" class="w-full h-full object-cover">
-            <span class="absolute bottom-1 right-1 rounded-md bg-black/70 text-white text-[10.5px] font-semibold px-1.5 leading-[18px]">{{ ex.photos.length }}</span>
-          </button>
-          <div class="flex-1 min-w-0">
-            <div class="flex flex-wrap items-baseline gap-x-2">
-              <h3 class="text-[15.5px] font-bold" :class="inkCls">{{ ex.name }}</h3>
-              <span class="text-[12.5px]" :class="inkFaintCls">{{ EQUIPMENT_LABELS[ex.equipment] }}</span>
+      <section v-for="section in sections" v-else :key="section.key" class="flex flex-col gap-2.5" :aria-busy="loading">
+        <h3 class="text-[13px] font-bold tracking-wide uppercase mt-1" :class="inkFaintCls">{{ section.title }}</h3>
+        <ul class="flex flex-col gap-3" :aria-label="section.title">
+          <li v-for="ex in section.items" :key="ex.id" class="rounded-2xl px-4 sm:px-5 py-4 shadow-xs flex gap-3.5 sm:gap-4 items-center" :class="cardCls">
+            <button
+              v-if="ex.photos.length"
+              type="button"
+              class="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-white border"
+              :class="[dividerCls, focusRingCls]"
+              :aria-label="`View photos of ${ex.name}`"
+              @click="openPhotos(ex)"
+            >
+              <img :src="ex.photos[0]!.src" alt="" loading="lazy" class="w-full h-full object-cover">
+              <span class="absolute bottom-1 right-1 rounded-md bg-black/70 text-white text-[10.5px] font-semibold px-1.5 leading-[18px]">{{ ex.photos.length }}</span>
+            </button>
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <h4 class="text-[15.5px] font-bold" :class="inkCls">{{ ex.name }}</h4>
+                <span class="text-[12.5px]" :class="inkFaintCls">{{ EQUIPMENT_LABELS[ex.equipment] }}</span>
+              </div>
+              <p class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ ex.cue }}</p>
+              <p class="text-[12.5px] mt-1.5" :class="inkFaintCls">
+                Works:
+                <template v-for="(w, i) in worksList(ex)" :key="w.muscle">
+                  <span
+                    :class="[
+                      w.muscle === selected ? ACCENT.coral.icon : w.primary ? inkCls : inkFaintCls,
+                      w.primary ? 'font-semibold' : '',
+                    ]"
+                  >{{ MUSCLE_LABELS[w.muscle] }}</span><span v-if="i < worksList(ex).length - 1">, </span>
+                </template>
+              </p>
             </div>
-            <p class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ ex.cue }}</p>
-          </div>
-          <span
-            v-if="hasExercise(ex.name)"
-            class="shrink-0 inline-flex items-center gap-1 text-[13px] font-semibold"
-            :class="ACCENT.green.icon"
-          >
-            <AppIcon :path="ICONS.check" class="w-4 h-4" />Added
-          </span>
-          <button
-            v-else
-            type="button"
-            class="shrink-0 min-h-11 sm:min-h-9 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black disabled:opacity-50"
-            :class="focusRingCls"
-            :disabled="adding === ex.id"
-            :aria-label="`Add ${ex.name} to today's workout`"
-            @click="add(ex)"
-          >
-            + Add
-          </button>
-        </li>
-      </ul>
+            <span
+              v-if="hasExercise(ex.name)"
+              class="shrink-0 inline-flex items-center gap-1 text-[13px] font-semibold"
+              :class="ACCENT.green.icon"
+            >
+              <AppIcon :path="ICONS.check" class="w-4 h-4" />Added
+            </span>
+            <button
+              v-else
+              type="button"
+              class="shrink-0 min-h-11 sm:min-h-9 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black disabled:opacity-50"
+              :class="focusRingCls"
+              :disabled="adding === ex.id"
+              :aria-label="`Add ${ex.name} to today's workout`"
+              @click="add(ex)"
+            >
+              + Add
+            </button>
+          </li>
+        </ul>
+      </section>
       <NuxtLink v-if="selected" to="/train" class="text-[13.5px] font-semibold self-start" :class="linkBlueCls">See today's workout →</NuxtLink>
     </div>
   </div>

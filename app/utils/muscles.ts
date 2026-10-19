@@ -1,51 +1,86 @@
-import type { BodyView, EquipmentKey, MuscleKey } from '~/types/training'
+import { BACK_MUSCLES, FRONT_MUSCLES } from 'body-muscles'
+import type { BodyView, EquipmentKey, MuscleArea, MuscleKey } from '~/types/training'
 
 export const MUSCLE_LABELS: Record<MuscleKey, string> = {
-  chest: 'Chest', shoulders: 'Shoulders', biceps: 'Biceps', triceps: 'Triceps', forearms: 'Forearms',
-  abs: 'Abs', obliques: 'Obliques', traps: 'Traps', lats: 'Lats', lowerBack: 'Lower back',
-  glutes: 'Glutes', quads: 'Quads', hamstrings: 'Hamstrings', calves: 'Calves',
+  upperChest: 'Upper chest', lowerChest: 'Mid & lower chest', serratus: 'Serratus',
+  frontDelts: 'Front delts', sideDelts: 'Side delts', rearDelts: 'Rear delts',
+  biceps: 'Biceps', tricepsLong: 'Triceps (long head)', tricepsLateral: 'Triceps (lateral head)',
+  forearmFlexors: 'Forearm flexors', forearmExtensors: 'Forearm extensors',
+  upperAbs: 'Upper abs', lowerAbs: 'Lower abs', obliques: 'Obliques',
+  upperTraps: 'Upper traps', midTraps: 'Mid traps', lowerTraps: 'Lower traps', lats: 'Lats', lowerBack: 'Lower back',
+  gluteMax: 'Glute max', gluteMed: 'Glute med', hipFlexors: 'Hip flexors', adductors: 'Adductors', quads: 'Quads',
+  hamstringsInner: 'Inner hamstrings', hamstringsOuter: 'Outer hamstrings',
+  gastrocnemius: 'Calves (gastrocnemius)', soleus: 'Soleus', tibialis: 'Tibialis',
 }
+
+export const MUSCLE_AREAS: { area: MuscleArea, label: string, muscles: MuscleKey[] }[] = [
+  { area: 'chest', label: 'Chest', muscles: ['upperChest', 'lowerChest', 'serratus'] },
+  { area: 'shoulders', label: 'Shoulders', muscles: ['frontDelts', 'sideDelts', 'rearDelts'] },
+  { area: 'arms', label: 'Arms', muscles: ['biceps', 'tricepsLong', 'tricepsLateral', 'forearmFlexors', 'forearmExtensors'] },
+  { area: 'core', label: 'Core', muscles: ['upperAbs', 'lowerAbs', 'obliques'] },
+  { area: 'back', label: 'Back', muscles: ['upperTraps', 'midTraps', 'lowerTraps', 'lats', 'lowerBack'] },
+  { area: 'legs', label: 'Legs', muscles: ['gluteMax', 'gluteMed', 'hipFlexors', 'adductors', 'quads', 'hamstringsInner', 'hamstringsOuter', 'gastrocnemius', 'soleus', 'tibialis'] },
+]
 
 export const EQUIPMENT_LABELS: Record<EquipmentKey, string> = { gym: 'Gym', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight' }
 export const EQUIPMENT_KEYS = Object.keys(EQUIPMENT_LABELS) as EquipmentKey[]
 
 /*
- * Body figure drawn in a 200×430 box. Every shape is the figure's left half (x ≤ 100);
- * the figure draws it again mirrored across x = 100 for the other side.
+ * The figure's artwork is the anatomical path data from body-muscles (Apache-2.0, © Ivan Vulović).
+ * Its regions are per side and sometimes finer than a training target (lats come in three parts),
+ * so each region id (without -left/-right) maps to the muscle it belongs to.
  */
-export const BODY_VIEWBOX = '0 0 200 430'
-
-export const BODY_SILHOUETTE = [
-  'M100,12 C90,12 84,20 84,32 C84,44 91,52 100,52 Z',
-  'M100,46 L92,46 L92,60 L100,60 Z',
-  'M100,56 L88,58 Q72,62 60,68 Q48,74 50,104 L44,150 Q40,182 42,212 Q42,232 50,234 Q58,232 58,214 Q62,186 66,154 Q70,128 70,106 L72,110 Q70,150 74,186 Q66,210 68,240 Q62,280 70,320 Q66,360 74,400 Q70,414 80,416 L96,414 Q98,360 94,324 Q100,280 100,230 Z',
-]
-
-export const BODY_REGIONS: Record<BodyView, { muscle: MuscleKey, d: string }[]> = {
-  front: [
-    { muscle: 'chest', d: 'M100,72 L74,74 Q66,86 70,104 Q86,114 100,108 Z' },
-    { muscle: 'shoulders', d: 'M72,70 Q56,68 52,86 Q52,100 58,106 L68,102 Q64,84 72,74 Z' },
-    { muscle: 'biceps', d: 'M56,110 Q50,128 54,150 L66,150 Q70,128 68,106 Z' },
-    { muscle: 'forearms', d: 'M52,154 Q44,180 46,210 L58,210 Q64,182 66,154 Z' },
-    { muscle: 'abs', d: 'M100,114 L88,114 L86,186 Q93,192 100,192 Z' },
-    { muscle: 'obliques', d: 'M84,114 L74,110 Q70,146 76,184 L84,188 Z' },
-    { muscle: 'quads', d: 'M72,216 Q64,260 72,304 L94,304 Q100,258 98,216 Q86,206 72,216 Z' },
-    { muscle: 'calves', d: 'M74,328 Q68,358 76,394 L84,394 Q82,358 86,328 Z' },
-  ],
-  back: [
-    { muscle: 'traps', d: 'M100,54 L92,58 Q84,66 72,72 L88,82 L100,122 Z' },
-    { muscle: 'shoulders', d: 'M72,70 Q56,68 52,86 Q52,100 58,106 L68,102 Q66,84 74,76 Z' },
-    { muscle: 'triceps', d: 'M56,110 Q50,128 54,150 L66,150 Q70,128 68,106 Z' },
-    { muscle: 'forearms', d: 'M52,154 Q44,180 46,210 L58,210 Q64,182 66,154 Z' },
-    { muscle: 'lats', d: 'M86,84 L100,126 L100,150 Q92,162 82,172 Q72,150 72,112 Q72,92 76,80 Z' },
-    { muscle: 'lowerBack', d: 'M100,154 L100,190 L76,188 Q72,170 74,156 Q78,168 82,176 Q92,166 100,154 Z' },
-    { muscle: 'glutes', d: 'M100,194 L76,192 Q66,208 70,236 Q86,246 100,238 Z' },
-    { muscle: 'hamstrings', d: 'M72,242 Q64,272 72,304 L94,304 Q100,272 98,244 Q86,250 72,242 Z' },
-    { muscle: 'calves', d: 'M74,326 Q66,354 76,382 L92,382 Q98,354 94,326 Q84,320 74,326 Z' },
-  ],
+const LIBRARY_TO_MUSCLE: Record<string, MuscleKey> = {
+  'chest-upper': 'upperChest', 'chest-lower': 'lowerChest', 'serratus-anterior': 'serratus',
+  'shoulder-front': 'frontDelts', 'shoulder-side': 'sideDelts', 'deltoid-rear': 'rearDelts',
+  'biceps': 'biceps', 'triceps-long': 'tricepsLong', 'triceps-lateral': 'tricepsLateral',
+  'forearm': 'forearmFlexors', 'forearm-flexors': 'forearmFlexors', 'forearm-extensors': 'forearmExtensors',
+  'abs-upper': 'upperAbs', 'abs-lower': 'lowerAbs', 'obliques': 'obliques',
+  'traps-upper': 'upperTraps', 'traps-mid': 'midTraps', 'traps-lower': 'lowerTraps',
+  'lats-upper': 'lats', 'lats-mid': 'lats', 'lats-lower': 'lats',
+  'lower-back-erectors': 'lowerBack', 'lower-back-ql': 'lowerBack',
+  'gluteus-maximus': 'gluteMax', 'gluteus-medius': 'gluteMed', 'hip-flexor': 'hipFlexors', 'adductors': 'adductors',
+  'quads': 'quads', 'hamstrings-medial': 'hamstringsInner', 'hamstrings-lateral': 'hamstringsOuter',
+  'calves-gastroc-medial': 'gastrocnemius', 'calves-gastroc-lateral': 'gastrocnemius', 'calves-soleus': 'soleus',
+  'tibialis-anterior': 'tibialis',
 }
 
-/** The view a muscle is drawn on; shoulders, forearms and calves show on both, so they prefer front. */
+/** Library regions that aren't trained (head, hands, joints…): drawn as the plain silhouette. */
+export const NEUTRAL_REGION_IDS = new Set([
+  'head', 'face', 'neck', 'head-back', 'nape', 'spine', 'hand', 'hand-back', 'foot', 'foot-back', 'knee', 'knee-back', 'elbow',
+])
+
+/** A library region id without its side: `chest-upper-left` → `chest-upper`. */
+export const regionBase = (id: string) => id.replace(/-(left|right)$/, '')
+
+export const muscleForRegion = (id: string): MuscleKey | undefined => LIBRARY_TO_MUSCLE[regionBase(id)]
+
+export const BODY_VIEWBOX: Record<BodyView, string> = { front: '0 0 35 93', back: '37 0 35 93' }
+
+export interface BodyRegions {
+  muscles: { muscle: MuscleKey, paths: string[] }[]
+  neutral: string[]
+}
+
+function buildRegions(source: { id: string, path: string }[]): BodyRegions {
+  const byMuscle = new Map<MuscleKey, string[]>()
+  const neutral: string[] = []
+  for (const { id, path } of source) {
+    const muscle = muscleForRegion(id)
+    if (muscle) byMuscle.set(muscle, [...byMuscle.get(muscle) ?? [], path])
+    else neutral.push(path)
+  }
+  return { muscles: [...byMuscle].map(([muscle, paths]) => ({ muscle, paths })), neutral }
+}
+
+export const BODY_REGIONS: Record<BodyView, BodyRegions> = {
+  front: buildRegions(FRONT_MUSCLES),
+  back: buildRegions(BACK_MUSCLES),
+}
+
+export const isOnView = (muscle: MuscleKey, view: BodyView) => BODY_REGIONS[view].muscles.some(r => r.muscle === muscle)
+
+/** The view a muscle is drawn on, preferring the front. */
 export function muscleView(muscle: MuscleKey): BodyView {
-  return BODY_REGIONS.front.some(r => r.muscle === muscle) ? 'front' : 'back'
+  return isOnView(muscle, 'front') ? 'front' : 'back'
 }

@@ -12,7 +12,7 @@ export function useBodyMap() {
   /** Picks a muscle, turning the figure around if it isn't drawn on the side being shown. */
   function select(muscle: MuscleKey) {
     selected.value = muscle
-    if (!BODY_REGIONS[view.value].some(r => r.muscle === muscle)) view.value = muscleView(muscle)
+    if (!isOnView(muscle, view.value)) view.value = muscleView(muscle)
   }
 
   function toggleEquipment(key: EquipmentKey) {
