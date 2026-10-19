@@ -19,8 +19,8 @@ watch(() => route.fullPath, close)
       </main>
     </div>
 
-    <ModalFoodSearch v-if="modal === 'foodSearch'" />
-    <ModalRecipe v-else-if="modal === 'recipe'" />
+    <ModalQuickLog v-if="modal === 'quickLog'" />
+    <ModalIngredient v-else-if="modal === 'ingredient'" />
     <ModalPlanner v-else-if="modal === 'planner'" />
     <ModalGrocery v-else-if="modal === 'grocery'" />
     <ModalCoach v-else-if="modal === 'coach'" />

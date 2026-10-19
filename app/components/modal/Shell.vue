@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // Overlay + panel: bottom sheet on mobile, centered card on md+.
-withDefaults(defineProps<{ panelClass?: string, label: string }>(), {
+// `onEscape` replaces the default close, for modals with nested views that Escape should step back out of.
+const props = withDefaults(defineProps<{ panelClass?: string, label: string, onEscape?: () => void }>(), {
   panelClass: 'md:w-[520px] max-h-[85vh] md:max-h-[640px]',
 })
 const { close } = useModal()
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') close()
+  if (e.key === 'Escape') (props.onEscape ?? close)()
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))

@@ -11,7 +11,7 @@
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck && tsc -p tests",
     "test:e2e": "playwright test",
-    "screenshots": "playwright test tests/e2e/screens.spec.ts tests/e2e/auth.spec.ts",
+    "screenshots": "playwright test tests/e2e/screens.spec.ts tests/e2e/auth.spec.ts tests/e2e/features",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",

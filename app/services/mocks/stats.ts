@@ -1,4 +1,4 @@
-import type { PeriodStats, StatsPeriod, TodayActivity, WeeklyReview } from '~/types/stats'
+import type { PeriodStats, StatsPeriod, WeeklyReview } from '~/types/stats'
 
 export const STATS: Record<StatsPeriod, PeriodStats> = {
   Day: { steps: '6,200', activeKcal: '480', restingHr: '58 bpm', sleep: '7h 12m', weight: '82.1 kg', vo2: '41.2' },
@@ -14,5 +14,3 @@ export const WEEKLY_REVIEW: WeeklyReview = {
   workouts: '4/5',
   avgSleep: '6h 40m',
 }
-
-export const TODAY_ACTIVITY: TodayActivity = { steps: 6200, stepsGoal: 10000 }

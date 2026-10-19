@@ -4,47 +4,77 @@ import * as foodService from '~/services/foodService'
 export function useRecipe() {
   const recipe = ref<RecipeDraft | null>(null)
   const catalog = ref<FoodItem[]>([])
-  const showPicker = ref(false)
+  const pickerMode = ref<'list' | 'create'>('list')
+  const query = ref('')
   const saving = ref(false)
 
   foodService.getRecipeDraft().then((r) => { recipe.value = r })
 
-  async function togglePicker() {
-    showPicker.value = !showPicker.value
-    if (showPicker.value && !catalog.value.length) catalog.value = await foodService.getCatalog()
+  async function refreshCatalog() {
+    catalog.value = await foodService.getIngredientOptions()
   }
+  refreshCatalog()
+
+  const filteredCatalog = computed(() => catalog.value.filter(i => matchesQuery(i.name, query.value)))
 
   function changeServings(delta: number) {
     if (!recipe.value) return
     recipe.value.servings = Math.max(1, Math.min(12, recipe.value.servings + delta))
   }
 
+  // Adding something already listed means more of it, not a second row.
   function addIngredient(item: FoodItem) {
-    recipe.value?.ingredients.push({ name: item.name, kcal: item.kcal, p: item.p, c: item.c, f: item.f })
-    showPicker.value = false
+    const existing = recipe.value?.ingredients.find(i => i.item.id === item.id)
+    if (existing) existing.amount = stepAmount(existing.amount, item.step, 1)
+    else recipe.value?.ingredients.push({ item, amount: item.per })
+    query.value = ''
+    pickerMode.value = 'list'
+  }
+
+  function stepIngredient(index: number, dir: 1 | -1) {
+    const ing = recipe.value?.ingredients[index]
+    if (ing) ing.amount = stepAmount(ing.amount, ing.item.step, dir)
   }
 
   function removeIngredient(index: number) {
     recipe.value?.ingredients.splice(index, 1)
   }
 
+  function startCreate() {
+    pickerMode.value = 'create'
+  }
+
+  const totals = computed(() => sumMacros(recipe.value?.ingredients ?? []))
+
   const perServing = computed(() => {
-    if (!recipe.value) return { kcal: 0, p: 0, c: 0, f: 0 }
-    const { servings, ingredients } = recipe.value
-    const sum = ingredients.reduce((a, i) => ({ kcal: a.kcal + i.kcal, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { kcal: 0, p: 0, c: 0, f: 0 })
-    return { kcal: Math.round(sum.kcal / servings), p: Math.round(sum.p / servings), c: Math.round(sum.c / servings), f: Math.round(sum.f / servings) }
+    const servings = recipe.value?.servings ?? 1
+    const { kcal, p, c, f } = totals.value
+    return { kcal: Math.round(kcal / servings), p: Math.round(p / servings), c: Math.round(c / servings), f: Math.round(f / servings) }
+  })
+
+  const canSave = computed(() => !!recipe.value?.name.trim() && recipe.value.ingredients.length > 0)
+  const saveHint = computed(() => {
+    if (!recipe.value || canSave.value) return ''
+    const noName = !recipe.value.name.trim()
+    const noIngredients = !recipe.value.ingredients.length
+    if (noName && noIngredients) return 'Add a name and an ingredient to save.'
+    return noName ? 'Add a name to save.' : 'Add an ingredient to save.'
   })
 
   async function save() {
-    if (!recipe.value) return
+    if (!recipe.value || !canSave.value) return
     saving.value = true
     try {
-      return await foodService.saveRecipe(recipe.value)
+      await foodService.saveRecipe(recipe.value)
+      await navigateTo('/food')
     }
     finally {
       saving.value = false
     }
   }
 
-  return { recipe, catalog, showPicker, saving, perServing, togglePicker, changeServings, addIngredient, removeIngredient, save }
+  return {
+    recipe, catalog, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing,
+    refreshCatalog, changeServings, addIngredient, stepIngredient, removeIngredient, startCreate, save,
+  }
 }

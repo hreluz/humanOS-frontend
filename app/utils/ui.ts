@@ -3,12 +3,14 @@ import type { Accent, TabKey } from '~/types/ui'
 export const ICONS = {
   coach: 'M12 21s-8-4.5-8-11a5 5 0 019-3 5 5 0 019 3c0 6.5-8 11-8 11z',
   chevronRight: 'M9 5l7 7-7 7',
-  search: 'M21 21l-4.3-4.3',
+  search: 'M21 21l-4.3-4.3M10.5 17a6.5 6.5 0 100-13 6.5 6.5 0 000 13z',
   protein: 'M12 2v20M6 8h12M4 14h16',
   steps: 'M13 3l-8 11h6l-1 7 8-11h-6l1-7z',
   check: 'M5 12l5 5L20 7',
   chevronUp: 'M5 15l7-7 7 7',
   signOut: 'M15 12H4m4-4l-4 4 4 4M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4',
+  water: 'M12 2s7 8 7 13a7 7 0 11-14 0c0-5 7-13 7-13z',
+  plus: 'M12 5v14M5 12h14',
   scale: 'M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zM9 10a3 3 0 016 0m-3 0l1.5-2',
 }
 

@@ -1,14 +1,11 @@
-import type { FoodItem, MealKey } from '~/types/food'
+import type { FoodLogEntry, MealKey } from '~/types/food'
 import * as foodService from '~/services/foodService'
 
 const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner', 'snacks']
 
-const pct = (value: number, target: number) => Math.min(100, Math.round((value / target) * 100))
-
 export function useFoodLog() {
   const { state: log, pending } = useServiceState('food-log', foodService.getFoodLog)
   const { state: targets } = useServiceState('daily-targets', foodService.getDailyTargets)
-  const { state: intake } = useServiceState('macro-intake', foodService.getMacroIntake)
 
   const mealSections = computed(() => MEALS.map(key => ({
     key,
@@ -18,21 +15,23 @@ export function useFoodLog() {
   })))
 
   const summary = computed(() => {
-    if (!log.value || !targets.value || !intake.value) return null
+    if (!log.value || !targets.value) return null
     const t = targets.value
-    const i = intake.value
-    const totalKcal = mealSections.value.reduce((a, m) => a + m.kcal, 0)
+    const items = mealSections.value.flatMap(m => m.items)
+    const sum = (key: 'kcal' | 'p' | 'c' | 'f') => Math.round(items.reduce((a, i) => a + i[key], 0))
+    const kcal = sum('kcal')
+    const protein = sum('p')
     return {
-      kcal: { value: totalKcal, target: t.kcal, pct: pct(totalKcal, t.kcal), remaining: Math.max(0, t.kcal - totalKcal) },
-      protein: { value: i.protein, target: t.protein, pct: pct(i.protein, t.protein), remaining: Math.max(0, t.protein - i.protein) },
-      carbs: { value: i.carbs, target: t.carbs, pct: pct(i.carbs, t.carbs) },
-      fat: { value: i.fat, target: t.fat, pct: pct(i.fat, t.fat) },
+      kcal: { value: kcal, target: t.kcal, pct: metricPct(kcal, t.kcal), remaining: Math.max(0, t.kcal - kcal) },
+      protein: { value: protein, target: t.protein, pct: metricPct(protein, t.protein), remaining: Math.max(0, t.protein - protein) },
+      carbs: { value: sum('c'), target: t.carbs, pct: metricPct(sum('c'), t.carbs) },
+      fat: { value: sum('f'), target: t.fat, pct: metricPct(sum('f'), t.fat) },
     }
   })
 
-  async function addFood(item: FoodItem) {
-    log.value = await foodService.addFoodToLog(item)
+  async function addFoods(entries: FoodLogEntry[], meal: MealKey, loggedAt?: string) {
+    log.value = await foodService.addFoodsToLog(entries, meal, loggedAt)
   }
 
-  return { log, pending, targets, mealSections, summary, addFood }
+  return { log, pending, targets, mealSections, summary, addFoods }
 }

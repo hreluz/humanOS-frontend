@@ -17,8 +17,3 @@ export interface WeeklyReview {
   workouts: string
   avgSleep: string
 }
-
-export interface TodayActivity {
-  steps: number
-  stepsGoal: number
-}

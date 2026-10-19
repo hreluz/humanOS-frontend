@@ -1,20 +1,48 @@
-import type { DailyTargets, FoodItem, FoodLog, FoodSearchTab, MacroIntake, MealKey, MealPlan, RecipeDraft } from '~/types/food'
+import type { DailyTargets, FoodItem, FoodLog, FoodLogEntry, FoodSearchTab, MealKey, MealPlan, NewFoodInput, RecipeDraft, RecipeIngredient } from '~/types/food'
+import { buildFood, entryMacros, formatPortion, isSameDay, matchesQuery, sumMacros } from '~/utils/logging'
 import { delay } from './mocks/delay'
-import { CATALOG, DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_MY_FOODS, INITIAL_RECIPE, MACRO_INTAKE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
+import { DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_RECENT_FOOD_IDS, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
+import { INGREDIENTS } from './mocks/ingredients'
+import { type MockRecipe, RECIPES } from './mocks/recipes'
 
 // Module-scoped copies stand in for the backend; callers only ever get clones.
 const foodLog: FoodLog = structuredClone(INITIAL_FOOD_LOG)
-const myFoods: FoodItem[] = structuredClone(INITIAL_MY_FOODS)
+const myFoods: FoodItem[] = RECIPES.map(recipeToFood)
+let recentIds: string[] = [...INITIAL_RECENT_FOOD_IDS]
+
+const RECENT_LIMIT = 20
+
+/** Today's food log; entries logged to another day are kept but left out. Seeded items (no time) count as today. */
+function todayLog(): FoodLog {
+  const now = new Date()
+  const today = (meal: MealKey) => foodLog[meal].filter(i => !i.loggedAt || isSameDay(i.loggedAt, now))
+  return structuredClone({ breakfast: today('breakfast'), lunch: today('lunch'), dinner: today('dinner'), snacks: today('snacks') })
+}
 
 export async function getFoodLog(): Promise<FoodLog> {
   await delay()
-  return structuredClone(foodLog)
+  return todayLog()
 }
 
-export async function addFoodToLog(item: FoodItem, meal: MealKey = 'snacks'): Promise<FoodLog> {
+/**
+ * Logs `amount` of `item` (in the item's unit) to a meal at `loggedAt` (ISO, default now); returns today's log.
+ * A recipe is logged with the ingredients of the portion eaten, so edits made while logging are kept; the saved recipe is left alone.
+ */
+export async function addFoodsToLog(entries: FoodLogEntry[], meal: MealKey, loggedAt = new Date().toISOString()): Promise<FoodLog> {
   await delay()
-  foodLog[meal].push({ name: item.name, kcal: item.kcal })
-  return structuredClone(foodLog)
+  for (const entry of entries) {
+    const { item, amount, ingredients } = entry
+    foodLog[meal].push({
+      name: item.name,
+      portion: formatPortion(item, amount),
+      ...entryMacros(entry),
+      loggedAt,
+      ...ingredients && { ingredients: ingredients.map(i => ({ ingredientId: i.item.id, name: i.item.name, amount: i.amount, unit: i.item.unit })) },
+    })
+  }
+  const logged = entries.map(e => e.item.id)
+  recentIds = [...new Set([...logged.reverse(), ...recentIds])]
+  return todayLog()
 }
 
 export async function getDailyTargets(): Promise<DailyTargets> {
@@ -22,23 +50,34 @@ export async function getDailyTargets(): Promise<DailyTargets> {
   return { ...DAILY_TARGETS }
 }
 
-export async function getMacroIntake(): Promise<MacroIntake> {
-  await delay()
-  return { ...MACRO_INTAKE }
-}
-
 export async function searchFoods(query: string, tab: FoodSearchTab): Promise<FoodItem[]> {
   await delay()
-  let results = tab === 'myfoods' ? myFoods : CATALOG
-  if (tab === 'verified') results = CATALOG.filter(i => i.brand !== 'Generic')
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  if (words.length) results = results.filter(i => words.every(w => i.name.toLowerCase().includes(w)))
-  return structuredClone(results)
+  return structuredClone(foodsFor(tab).filter(i => matchesQuery(i.name, query)))
 }
 
-export async function getCatalog(): Promise<FoodItem[]> {
+/** The list a search tab draws from; All puts the user's own foods (newest first) ahead of the catalog. */
+function foodsFor(tab: FoodSearchTab): FoodItem[] {
+  if (tab === 'myfoods') return myFoods
+  if (tab === 'verified') return INGREDIENTS.filter(i => i.brand !== 'Generic')
+  if (tab === 'recent') {
+    const all = [...myFoods, ...INGREDIENTS]
+    return recentIds.map(id => all.find(i => i.id === id)).filter(i => !!i).slice(0, RECENT_LIMIT)
+  }
+  return [...myFoods.slice().reverse(), ...INGREDIENTS]
+}
+
+/** Everything usable as a recipe ingredient: the user's own foods first, then the catalog. Recipes are left out. */
+export async function getIngredientOptions(): Promise<FoodItem[]> {
   await delay()
-  return structuredClone(CATALOG)
+  return structuredClone([...myFoods.filter(i => !i.recipe).reverse(), ...INGREDIENTS])
+}
+
+/** Saves a food the user typed in to My foods. */
+export async function createFood(input: NewFoodInput): Promise<FoodItem> {
+  await delay()
+  const food = buildFood(input, 'food_' + Date.now())
+  myFoods.push(food)
+  return structuredClone(food)
 }
 
 export async function getRecipeDraft(): Promise<RecipeDraft> {
@@ -48,14 +87,25 @@ export async function getRecipeDraft(): Promise<RecipeDraft> {
 
 export async function saveRecipe(recipe: RecipeDraft): Promise<FoodItem> {
   await delay()
-  const sum = recipe.ingredients.reduce((a, i) => ({ kcal: a.kcal + i.kcal, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { kcal: 0, p: 0, c: 0, f: 0 })
-  const per = (n: number) => Math.round(n / recipe.servings)
-  const food: FoodItem = {
-    id: 'recipe_' + Date.now(), name: recipe.name, brand: 'Custom recipe', serving: '1 serving',
-    kcal: per(sum.kcal), p: per(sum.p), c: per(sum.c), f: per(sum.f),
-  }
+  const food = recipeFood('recipe_' + Date.now(), recipe.name, recipe.servings, recipe.ingredients.map(i => ({ item: { ...i.item }, amount: i.amount })))
   myFoods.push(food)
   return structuredClone(food)
+}
+
+/** A recipe as a loggable My Foods item: one serving of its summed macros, plus what the whole batch is made of. */
+function recipeFood(id: string, name: string, servings: number, ingredients: RecipeIngredient[]): FoodItem {
+  const sum = sumMacros(ingredients)
+  const per = (n: number) => Math.round(n / servings)
+  return {
+    id, name, brand: 'Custom recipe', serving: '1 serving', per: 1, unit: 'serving', step: 1,
+    kcal: per(sum.kcal), p: per(sum.p), c: per(sum.c), f: per(sum.f),
+    recipe: { servings, ingredients },
+  }
+}
+
+function recipeToFood(recipe: MockRecipe): FoodItem {
+  const ingredients = recipe.ingredients.map(({ ingredientId, amount }) => ({ item: INGREDIENTS.find(i => i.id === ingredientId)!, amount }))
+  return recipeFood(recipe.id, recipe.name, recipe.servings, ingredients)
 }
 
 export async function getPlannerDays(): Promise<string[]> {

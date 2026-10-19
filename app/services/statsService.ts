@@ -1,6 +1,6 @@
-import type { PeriodStats, StatsPeriod, TodayActivity, WeeklyReview } from '~/types/stats'
+import type { PeriodStats, StatsPeriod, WeeklyReview } from '~/types/stats'
 import { delay } from './mocks/delay'
-import { STATS, TODAY_ACTIVITY, WEEKLY_REVIEW } from './mocks/stats'
+import { STATS, WEEKLY_REVIEW } from './mocks/stats'
 
 export async function getStats(period: StatsPeriod): Promise<PeriodStats> {
   await delay()
@@ -10,9 +10,4 @@ export async function getStats(period: StatsPeriod): Promise<PeriodStats> {
 export async function getWeeklyReview(): Promise<WeeklyReview> {
   await delay()
   return { ...WEEKLY_REVIEW }
-}
-
-export async function getTodayActivity(): Promise<TodayActivity> {
-  await delay()
-  return { ...TODAY_ACTIVITY }
 }

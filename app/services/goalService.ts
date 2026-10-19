@@ -19,6 +19,9 @@ export async function createGoal(templateKey: string, target: number): Promise<G
   await delay()
   const tpl = GOAL_TEMPLATES.find(g => g.key === templateKey)
   if (!tpl) throw new Error(`Unknown goal template: ${templateKey}`)
-  goals.push({ id: tpl.key + '_' + Date.now(), label: makeGoalLabel(tpl, target), sub: 'Just started', pct: 4, accent: tpl.accent })
+  goals.push({
+    id: tpl.key + '_' + Date.now(), label: makeGoalLabel(tpl, target), sub: 'Just started', pct: 4, accent: tpl.accent,
+    ...(tpl.metric && { metric: tpl.metric, target: target * (tpl.metricScale ?? 1) }),
+  })
   return structuredClone(goals)
 }

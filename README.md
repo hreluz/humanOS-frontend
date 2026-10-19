@@ -1,75 +1,44 @@
-# Nuxt Minimal Starter
+# HumanOS Frontend
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Nuxt 4 app for HumanOS.
+
+## Requirements
+
+- Node `v24.21.0` (see `.nvmrc`)
+- pnpm (version pinned in `package.json` via `packageManager`)
 
 ## Setup
 
-Make sure to install dependencies:
-
 ```bash
-# npm
-npm install
-
-# pnpm
+nvm use            # use the Node version in .nvmrc
+corepack enable    # provides the pinned pnpm version
 pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
 ```
 
-## Development Server
+## Development
 
-Start the development server on `http://localhost:3000`:
+Start the [humanOS-backend](../humanOS-backend) first. The app calls the API at `http://localhost:8000/api` by default.
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+pnpm dev           # http://localhost:3000
 ```
 
-## Production
-
-Build the application for production:
+To use a different API:
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+NUXT_PUBLIC_API_BASE=https://your-api/api pnpm dev
 ```
 
-Locally preview production build:
+## Scripts
 
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | Start the dev server |
+| `pnpm build` | Build for production |
+| `pnpm preview` | Serve the production build locally |
+| `pnpm test` / `pnpm test:watch` | Run Vitest unit tests |
+| `pnpm test:e2e` | Run Playwright tests on port 3100 (needs the backend running) |
+| `pnpm screenshots` | Run the Playwright screenshot specs |
+| `pnpm lint` / `pnpm lint:fix` | Lint the code, or lint and fix it |
+| `pnpm typecheck` | Run the Nuxt and test type checks |
+| `pnpm gen:api` | Regenerate `app/types/api.generated.ts` from the backend's OpenAPI spec |
