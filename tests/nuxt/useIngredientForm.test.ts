@@ -30,6 +30,21 @@ describe('useIngredientForm', () => {
     }
   })
 
+  it('saves a picked category and leaves no category out', () => {
+    const { newFood, parsedFood } = useIngredientForm('Skyr')
+    newFood.value.kcal = '60'
+    expect(parsedFood.value).not.toHaveProperty('category')
+    newFood.value.category = 'dairy'
+    expect(parsedFood.value).toMatchObject({ category: 'dairy' })
+  })
+
+  it('never asks for a category', () => {
+    const { newFood, missing } = useIngredientForm()
+    expect(missing.value).toBe('Add a name and calories to save.')
+    newFood.value = { ...newFood.value, name: 'Skyr', kcal: '60' }
+    expect(missing.value).toBe('')
+  })
+
   it('starts from the searched name', () => {
     const { missing } = useIngredientForm('Tahini')
     expect(missing.value).toBe('Add calories to save.')

@@ -44,9 +44,10 @@ export function matchesQuery(name: string, query: string) {
 
 /** A user-created food, with the stepper sized to its unit. */
 export function buildFood(input: NewFoodInput, id: string): FoodItem {
-  const { name, per, unit, kcal, p, c, f, price } = input
+  const { name, per, unit, kcal, p, c, f, price, category } = input
   const food: FoodItem = { id, name: name.trim(), brand: 'My food', serving: '', per, unit, step: unit === 'g' || unit === 'ml' ? 10 : 1, kcal, p, c, f }
   if (price !== undefined) food.price = price
+  if (category !== undefined) food.category = category
   return { ...food, serving: formatPortion(food, per) }
 }
 

@@ -47,6 +47,13 @@ async function onSubmit() {
       <span class="block text-xs mb-1" :class="inkFaintCls">Ingredient name</span>
       <input ref="nameInput" v-model="newFood.name" placeholder="e.g. Tahini" autocomplete="off" :class="fieldInputCls">
     </label>
+    <label :class="fieldCls">
+      <span class="block text-xs mb-1" :class="inkFaintCls">Category (optional)</span>
+      <select v-model="newFood.category" class="dark:[color-scheme:dark]" :class="fieldInputCls">
+        <option value="">No category</option>
+        <option v-for="cat in CATEGORIES" :key="cat.key" :value="cat.key">{{ cat.label }}</option>
+      </select>
+    </label>
     <div class="rounded-xl px-3.5 py-2.5" :class="[ringWithinCls, bgCls]">
       <label class="block text-xs mb-1" :class="inkFaintCls" :for="perId">Nutrition per</label>
       <div class="flex items-center gap-2">

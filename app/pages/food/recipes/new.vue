@@ -146,7 +146,7 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
                 >
                   <div class="min-w-0">
                     <div class="text-sm font-semibold" :class="inkCls">{{ item.name }}</div>
-                    <div class="text-[12px]" :class="inkSoftCls"><template v-if="item.brand === 'My food'">My food · </template>{{ item.serving }} · {{ item.kcal }} kcal · {{ item.p }}g protein · {{ item.c }}g carbs<template v-if="item.price !== undefined"> · <span class="tabular-nums">{{ formatPrice(item.price) }}</span></template></div>
+                    <div class="text-[12px]" :class="inkSoftCls"><template v-if="item.brand === 'My food'">My food · </template><template v-if="item.category">{{ categoryLabel(item.category) }} · </template>{{ item.serving }} · {{ item.kcal }} kcal · {{ item.p }}g protein · {{ item.c }}g carbs<template v-if="item.price !== undefined"> · <span class="tabular-nums">{{ formatPrice(item.price) }}</span></template></div>
                   </div>
                   <span class="text-base shrink-0" :class="linkBlueCls" aria-hidden="true">+</span>
                 </button>

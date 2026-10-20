@@ -152,6 +152,11 @@ describe('buildFood', () => {
     expect(buildFood({ name: 'Tahini', per: 100, unit: 'g', kcal: 595, p: 17, c: 21, f: 54, price: 2.5 }, 't').price).toBe(2.5)
     expect(buildFood({ name: 'Tahini', per: 100, unit: 'g', kcal: 595, p: 17, c: 21, f: 54 }, 't')).not.toHaveProperty('price')
   })
+
+  it('keeps a picked category and adds no category key without one', () => {
+    expect(buildFood({ name: 'Tahini', per: 100, unit: 'g', kcal: 595, p: 17, c: 21, f: 54, category: 'fats' }, 't').category).toBe('fats')
+    expect(buildFood({ name: 'Tahini', per: 100, unit: 'g', kcal: 595, p: 17, c: 21, f: 54 }, 't')).not.toHaveProperty('category')
+  })
 })
 
 describe('matchesQuery', () => {
