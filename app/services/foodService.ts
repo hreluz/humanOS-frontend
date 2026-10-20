@@ -3,11 +3,12 @@ import { buildFood, entryMacros, formatPortion, isSameDay, matchesQuery, sumMacr
 import { delay } from './mocks/delay'
 import { DAILY_TARGETS, INITIAL_FOOD_LOG, INITIAL_RECENT_FOOD_IDS, INITIAL_RECIPE, PLANNER_DAYS, mealPlanFor } from './mocks/food'
 import { INGREDIENTS } from './mocks/ingredients'
+import { MY_FOODS } from './mocks/myFoods'
 import { type MockRecipe, RECIPES } from './mocks/recipes'
 
 // Module-scoped copies stand in for the backend; callers only ever get clones.
 const foodLog: FoodLog = structuredClone(INITIAL_FOOD_LOG)
-const myFoods: FoodItem[] = RECIPES.map(recipeToFood)
+const myFoods: FoodItem[] = [...RECIPES.map(recipeToFood), ...MY_FOODS.map(f => buildFood(f, f.id))]
 let recentIds: string[] = [...INITIAL_RECENT_FOOD_IDS]
 
 const RECENT_LIMIT = 20
@@ -78,6 +79,45 @@ export async function createFood(input: NewFoodInput): Promise<FoodItem> {
   const food = buildFood(input, 'food_' + Date.now())
   myFoods.push(food)
   return structuredClone(food)
+}
+
+/** The user's custom ingredients (no recipes), newest first. */
+export async function getMyFoods(): Promise<FoodItem[]> {
+  await delay()
+  return structuredClone(myFoods.filter(i => !i.recipe).reverse())
+}
+
+/** One custom ingredient, or null when the id is unknown or belongs to a recipe. */
+export async function getMyFood(id: string): Promise<FoodItem | null> {
+  await delay()
+  const food = findCustomFood(id)
+  return food ? structuredClone(food) : null
+}
+
+/** Replaces a custom ingredient with what the user typed, keeping its id and place. Saved recipes and the log keep their copies. */
+export async function updateFood(id: string, input: NewFoodInput): Promise<FoodItem> {
+  await delay()
+  const index = customFoodIndex(id)
+  const food = buildFood(input, id)
+  myFoods[index] = food
+  return structuredClone(food)
+}
+
+/** Removes a custom ingredient from My foods and Recent. Saved recipes and the log keep their copies. */
+export async function deleteFood(id: string): Promise<void> {
+  await delay()
+  myFoods.splice(customFoodIndex(id), 1)
+  recentIds = recentIds.filter(r => r !== id)
+}
+
+function findCustomFood(id: string): FoodItem | undefined {
+  return myFoods.find(i => i.id === id && !i.recipe)
+}
+
+function customFoodIndex(id: string): number {
+  const index = myFoods.findIndex(i => i.id === id && !i.recipe)
+  if (index === -1) throw new Error(`No custom food with id ${id}`)
+  return index
 }
 
 export async function getRecipeDraft(): Promise<RecipeDraft> {

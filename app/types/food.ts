@@ -67,6 +67,9 @@ export interface NewFoodInput extends Macros {
 
 export type FoodSearchTab = 'all' | 'recent' | 'myfoods' | 'verified'
 
+/** The My foods page filter: every food, one category, or foods saved without a category. */
+export type MyFoodsFilter = 'all' | 'none' | IngredientCategory
+
 /** `amount` of `item`, in the item's unit. */
 export interface RecipeIngredient {
   item: FoodItem

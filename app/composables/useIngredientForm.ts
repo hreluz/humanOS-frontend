@@ -6,14 +6,20 @@ function emptyFood(name = '') {
   return { name, per: '100', unit: 'g' as PortionUnit, kcal: '', p: '', c: '', f: '', price: '', category: '' as IngredientCategory | '' }
 }
 
+/** A saved food as form text, for editing it. */
+function foodToForm(food: FoodItem): ReturnType<typeof emptyFood> {
+  const { name, per, unit, kcal, p, c, f, price, category } = food
+  return { name, per: String(per), unit, kcal: String(kcal), p: String(p), c: String(c), f: String(f), price: price === undefined ? '' : price.toFixed(2), category: category ?? '' }
+}
+
 /** "a name", "a name and calories", "a name, an amount and calories". */
 function joinMissing(parts: string[]) {
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? ''
 }
 
-/** State for creating a food that isn't in the catalog; saving puts it in My foods. */
-export function useIngredientForm(initialName = '') {
-  const newFood = ref(emptyFood(initialName))
+/** State for creating a food that isn't in the catalog, or for editing one of the user's own (`editing`); saving puts it in My foods. */
+export function useIngredientForm(initialName = '', editing?: FoodItem) {
+  const newFood = ref(editing ? foodToForm(editing) : emptyFood(initialName))
   const creating = ref(false)
 
   const amount = computed(() => parseAmount(newFood.value.per, { max: AMOUNT_LIMITS[newFood.value.unit] }))
@@ -44,16 +50,18 @@ export function useIngredientForm(initialName = '') {
     return food
   })
 
-  async function create(): Promise<FoodItem | undefined> {
+  async function save(): Promise<FoodItem | undefined> {
     if (!parsedFood.value || creating.value) return
     creating.value = true
     try {
-      return await foodService.createFood(parsedFood.value)
+      return editing
+        ? await foodService.updateFood(editing.id, parsedFood.value)
+        : await foodService.createFood(parsedFood.value)
     }
     finally {
       creating.value = false
     }
   }
 
-  return { newFood, amount, priceInvalid, missing, parsedFood, creating, create }
+  return { newFood, amount, priceInvalid, missing, parsedFood, creating, save, create: save }
 }

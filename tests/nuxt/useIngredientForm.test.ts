@@ -1,4 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { FoodItem, NewFoodInput } from '~/types/food'
+import { MY_FOODS } from '~/services/mocks/myFoods'
+
+const service = vi.hoisted(() => ({
+  createFood: vi.fn(async (input: NewFoodInput) => ({ ...input, id: 'food_new' }) as unknown as FoodItem),
+  updateFood: vi.fn(async (id: string, input: NewFoodInput) => ({ ...input, id }) as unknown as FoodItem),
+}))
+vi.mock('~/services/foodService', async importOriginal => ({ ...await importOriginal<object>(), ...service }))
+
+const seed = (id: string) => {
+  const { id: _, ...input } = MY_FOODS.find(f => f.id === id)!
+  return buildFood(input, id)
+}
 
 describe('useIngredientForm', () => {
   it('says what is still missing before it can save', () => {
@@ -48,5 +61,45 @@ describe('useIngredientForm', () => {
   it('starts from the searched name', () => {
     const { missing } = useIngredientForm('Tahini')
     expect(missing.value).toBe('Add calories to save.')
+  })
+})
+
+describe('useIngredientForm editing', () => {
+  it('prefills the form from a priced, categorized food', () => {
+    const { newFood, missing } = useIngredientForm('', seed('myfood_protein_bar'))
+    expect(newFood.value).toEqual({ name: 'Homemade protein bar', per: '1', unit: 'piece', kcal: '210', p: '15', c: '22', f: '7', price: '1.20', category: 'other' })
+    expect(missing.value).toBe('')
+  })
+
+  it('prefills a blank price and category when the food has none', () => {
+    const { newFood } = useIngredientForm('', seed('myfood_pesto'))
+    expect(newFood.value.price).toBe('')
+    expect(newFood.value.category).toBe('')
+  })
+
+  it('drops a cleared price and category from the saved food', () => {
+    const { newFood, parsedFood } = useIngredientForm('', seed('myfood_protein_bar'))
+    newFood.value.price = ''
+    newFood.value.category = ''
+    expect(parsedFood.value).not.toHaveProperty('price')
+    expect(parsedFood.value).not.toHaveProperty('category')
+  })
+
+  it('updates the edited food on save', async () => {
+    const { newFood, save } = useIngredientForm('', seed('myfood_salsa_verde'))
+    newFood.value.kcal = '50'
+    const food = await save()
+    expect(service.updateFood).toHaveBeenCalledWith('myfood_salsa_verde', expect.objectContaining({ kcal: 50, category: 'condiments' }))
+    expect(service.createFood).not.toHaveBeenCalled()
+    expect(food?.id).toBe('myfood_salsa_verde')
+  })
+
+  it('still creates a new food without one', async () => {
+    service.updateFood.mockClear()
+    const { newFood, create } = useIngredientForm('Tahini')
+    newFood.value.kcal = '90'
+    await create()
+    expect(service.createFood).toHaveBeenCalledWith(expect.objectContaining({ name: 'Tahini', kcal: 90 }))
+    expect(service.updateFood).not.toHaveBeenCalled()
   })
 })
