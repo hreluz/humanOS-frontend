@@ -55,6 +55,8 @@ export interface NewFoodInput extends Macros {
   name: string
   per: number
   unit: PortionUnit
+  /** USD for `per` of `unit`, rounded to cents. Absent when the user left it blank. */
+  price?: number
 }
 
 export type FoodSearchTab = 'all' | 'recent' | 'myfoods' | 'verified'

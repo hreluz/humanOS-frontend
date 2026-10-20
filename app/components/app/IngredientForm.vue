@@ -3,7 +3,7 @@ import type { FoodItem, PortionUnit } from '~/types/food'
 
 const props = defineProps<{ initialName?: string, submitLabel: string }>()
 const emit = defineEmits<{ created: [food: FoodItem] }>()
-const { newFood, amount, missing, parsedFood, creating, create } = useIngredientForm(props.initialName)
+const { newFood, amount, priceInvalid, missing, parsedFood, creating, create } = useIngredientForm(props.initialName)
 
 const UNITS: { key: PortionUnit, label: string }[] = [
   { key: 'g', label: 'g' }, { key: 'ml', label: 'ml' }, { key: 'piece', label: 'piece' }, { key: 'serving', label: 'serving' },
@@ -21,6 +21,14 @@ const perErrorId = useId()
 const missingId = useId()
 const perTouched = ref(false)
 const perInvalid = computed(() => perTouched.value && !amount.value)
+const priceId = useId()
+const priceErrorId = useId()
+const priceTouched = ref(false)
+const showPriceError = computed(() => priceTouched.value && priceInvalid.value)
+// The price is for the same portion as the nutrition: "Price (USD, per 100 g)".
+const priceLabel = computed(() => amount.value
+  ? `Price (USD, per ${formatPortion({ unit: newFood.value.unit } as FoodItem, amount.value)})`
+  : 'Price (USD)')
 
 const nameInput = ref<HTMLInputElement>()
 const kcalInput = ref<HTMLInputElement>()
@@ -80,6 +88,24 @@ async function onSubmit() {
         <span class="block text-xs mb-1" :class="inkFaintCls">{{ label }} (g)</span>
         <input v-model="newFood[key]" inputmode="decimal" placeholder="0" autocomplete="off" :class="fieldInputCls">
       </label>
+    </div>
+    <div :class="fieldCls">
+      <label class="block text-xs mb-1" :class="inkFaintCls" :for="priceId">{{ priceLabel }}</label>
+      <div class="flex items-center gap-1">
+        <span aria-hidden="true" :class="inputTextCls">$</span>
+        <input
+          :id="priceId"
+          v-model="newFood.price"
+          inputmode="decimal"
+          placeholder="0.00"
+          autocomplete="off"
+          :class="fieldInputCls"
+          :aria-invalid="showPriceError"
+          :aria-describedby="showPriceError ? priceErrorId : undefined"
+          @blur="priceTouched = true"
+        >
+      </div>
+      <div v-if="showPriceError" :id="priceErrorId" class="text-xs mt-1.5 text-accent-coral dark:text-accent-coral-dark">Enter a price like 1.10.</div>
     </div>
     <div class="mt-auto flex flex-col gap-2 pt-1">
       <p v-if="missing" :id="missingId" class="text-[13px] text-center" :class="inkFaintCls">{{ missing }}</p>

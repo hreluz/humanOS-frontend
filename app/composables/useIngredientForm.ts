@@ -3,7 +3,7 @@ import * as foodService from '~/services/foodService'
 
 /** The form keeps raw text so half-typed numbers like "12," survive. */
 function emptyFood(name = '') {
-  return { name, per: '100', unit: 'g' as PortionUnit, kcal: '', p: '', c: '', f: '' }
+  return { name, per: '100', unit: 'g' as PortionUnit, kcal: '', p: '', c: '', f: '', price: '' }
 }
 
 /** "a name", "a name and calories", "a name, an amount and calories". */
@@ -18,6 +18,9 @@ export function useIngredientForm(initialName = '') {
 
   const amount = computed(() => parseAmount(newFood.value.per, { max: AMOUNT_LIMITS[newFood.value.unit] }))
   const energy = computed(() => parseAmount(newFood.value.kcal, { integer: true, max: AMOUNT_LIMITS.kcal }))
+  const price = computed(() => parseAmount(newFood.value.price, { decimals: 2, max: AMOUNT_LIMITS.price }))
+  /** The price is optional, so only typed text that isn't a price counts as invalid. */
+  const priceInvalid = computed(() => newFood.value.price.trim() !== '' && !price.value)
 
   /** What still has to be filled in before saving, as a sentence; empty when the form is complete. */
   const missing = computed(() => {
@@ -25,16 +28,18 @@ export function useIngredientForm(initialName = '') {
       !newFood.value.name.trim() && 'a name',
       !amount.value && 'an amount',
       !energy.value && 'calories',
+      priceInvalid.value && 'a valid price',
     ].filter((p): p is string => !!p)
     return parts.length ? `Add ${joinMissing(parts)} to save.` : ''
   })
 
-  /** The typed food, or null while the name, serving or calories are missing. Blank macros count as 0. */
+  /** The typed food, or null while the name, serving or calories are missing. Blank macros count as 0; a blank price is left out. */
   const parsedFood = computed(() => {
     if (missing.value) return null
     const { name, unit, p, c, f } = newFood.value
     const grams = (t: string) => parseAmount(t, { max: AMOUNT_LIMITS.g }) ?? 0
-    return { name, per: amount.value!, unit, kcal: energy.value!, p: grams(p), c: grams(c), f: grams(f) }
+    const food = { name, per: amount.value!, unit, kcal: energy.value!, p: grams(p), c: grams(c), f: grams(f) }
+    return price.value ? { ...food, price: price.value } : food
   })
 
   async function create(): Promise<FoodItem | undefined> {
@@ -48,5 +53,5 @@ export function useIngredientForm(initialName = '') {
     }
   }
 
-  return { newFood, amount, missing, parsedFood, creating, create }
+  return { newFood, amount, priceInvalid, missing, parsedFood, creating, create }
 }
