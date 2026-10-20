@@ -32,6 +32,8 @@ export interface Macros {
 
 export type PortionUnit = 'g' | 'ml' | 'piece' | 'serving'
 
+export type IngredientCategory = 'meat' | 'seafood' | 'eggs' | 'plant_protein' | 'dairy' | 'grains' | 'legumes' | 'vegetables' | 'fruit' | 'fats' | 'condiments' | 'supplements' | 'other'
+
 export interface FoodItem extends Macros {
   id: string
   name: string
@@ -48,6 +50,8 @@ export interface FoodItem extends Macros {
   recipe?: { servings: number, ingredients: RecipeIngredient[] }
   /** USD for `per` of `unit` (e.g. 1.1 = $1.10 per 100 g). Absent when unknown (custom foods, recipes). */
   price?: number
+  /** Food group. Set on every catalog item. Absent on custom foods saved without one, and on recipes. */
+  category?: IngredientCategory
 }
 
 /** What the user types when creating a food that isn't in the catalog. */
@@ -57,6 +61,8 @@ export interface NewFoodInput extends Macros {
   unit: PortionUnit
   /** USD for `per` of `unit`, rounded to cents. Absent when the user left it blank. */
   price?: number
+  /** Absent when the user left the select on "No category". */
+  category?: IngredientCategory
 }
 
 export type FoodSearchTab = 'all' | 'recent' | 'myfoods' | 'verified'

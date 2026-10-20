@@ -35,7 +35,7 @@ function createAnother() {
           </span>
           <div class="min-w-0">
             <div class="text-[14.5px] font-semibold" :class="inkCls">{{ saved.name }} saved to My foods.</div>
-            <div class="text-xs" :class="inkFaintCls">{{ saved.serving }} · {{ saved.kcal }} kcal<template v-if="saved.price !== undefined"> · {{ formatPrice(saved.price) }}</template></div>
+            <div class="text-xs" :class="inkFaintCls">{{ saved.serving }}<template v-if="saved.category"> · {{ categoryLabel(saved.category) }}</template> · {{ saved.kcal }} kcal<template v-if="saved.price !== undefined"> · {{ formatPrice(saved.price) }}</template></div>
           </div>
         </div>
       </div>
