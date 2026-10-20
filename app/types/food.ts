@@ -46,6 +46,8 @@ export interface FoodItem extends Macros {
   pieceName?: string
   /** Only on recipes: what the whole batch is made of. */
   recipe?: { servings: number, ingredients: RecipeIngredient[] }
+  /** USD for `per` of `unit` (e.g. 1.1 = $1.10 per 100 g). Absent when unknown (custom foods, recipes). */
+  price?: number
 }
 
 /** What the user types when creating a food that isn't in the catalog. */

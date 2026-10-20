@@ -4,7 +4,7 @@ import type { FoodItem } from '~/types/food'
 definePageMeta({ tab: 'food' })
 
 const {
-  recipe, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing,
+  recipe, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing, cost,
   refreshCatalog, changeServings, addIngredient, stepIngredient, removeIngredient, startCreate, save,
 } = useRecipe()
 
@@ -104,7 +104,7 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
             <li v-for="(ing, idx) in recipe.ingredients" :key="ing.item.id" class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 py-2.5 border-t first:border-t-0" :class="dividerCls">
               <div class="basis-full sm:basis-auto flex-1 min-w-0">
                 <div class="text-[14.5px] font-semibold" :class="inkCls">{{ ing.item.name }}</div>
-                <div class="text-[12.5px]" :class="inkSoftCls">{{ scaleFood(ing.item, ing.amount).kcal }} kcal · {{ scaleFood(ing.item, ing.amount).p }}g protein · {{ scaleFood(ing.item, ing.amount).c }}g carbs</div>
+                <div class="text-[12.5px]" :class="inkSoftCls">{{ scaleFood(ing.item, ing.amount).kcal }} kcal · {{ scaleFood(ing.item, ing.amount).p }}g protein · {{ scaleFood(ing.item, ing.amount).c }}g carbs<template v-if="ing.item.price !== undefined"> · <span data-testid="line-cost" class="tabular-nums">{{ formatPrice(scalePrice(ing.item, ing.amount)!) }}</span></template></div>
               </div>
               <AppStepper
                 v-model="ing.amount"
@@ -146,7 +146,7 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
                 >
                   <div class="min-w-0">
                     <div class="text-sm font-semibold" :class="inkCls">{{ item.name }}</div>
-                    <div class="text-[12px]" :class="inkSoftCls"><template v-if="item.brand === 'My food'">My food · </template>{{ item.serving }} · {{ item.kcal }} kcal · {{ item.p }}g protein · {{ item.c }}g carbs</div>
+                    <div class="text-[12px]" :class="inkSoftCls"><template v-if="item.brand === 'My food'">My food · </template>{{ item.serving }} · {{ item.kcal }} kcal · {{ item.p }}g protein · {{ item.c }}g carbs<template v-if="item.price !== undefined"> · <span class="tabular-nums">{{ formatPrice(item.price) }}</span></template></div>
                   </div>
                   <span class="text-base shrink-0" :class="linkBlueCls" aria-hidden="true">+</span>
                 </button>
@@ -175,7 +175,9 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
           <div class="flex justify-between items-baseline"><span class="text-[13.5px] text-white/60">Calories</span><span data-testid="per-serving-kcal" class="text-2xl font-bold text-white tabular-nums">{{ perServing.kcal }} kcal</span></div>
           <div class="flex justify-between"><span class="text-[13.5px] text-white/60">Protein</span><span class="text-[14.5px] font-semibold text-white tabular-nums">{{ perServing.p }}g</span></div>
           <div class="flex justify-between"><span class="text-[13.5px] text-white/60">Carbs</span><span class="text-[14.5px] font-semibold text-white tabular-nums">{{ perServing.c }}g</span></div>
-          <div v-if="recipe.servings > 1" class="text-[12.5px] text-white/50 pt-1 border-t border-white/10">Whole recipe: {{ Math.round(totals.kcal) }} kcal</div>
+          <div v-if="cost" class="flex justify-between"><span class="text-[13.5px] text-white/60">Cost</span><span data-testid="per-serving-cost" class="text-[14.5px] font-semibold text-white tabular-nums">{{ formatPrice(cost.perServing) }}</span></div>
+          <div v-if="recipe.servings > 1" class="text-[12.5px] text-white/50 pt-1 border-t border-white/10 tabular-nums">Whole recipe: {{ Math.round(totals.kcal) }} kcal<template v-if="cost"> · <span data-testid="whole-recipe-cost">{{ formatPrice(cost.total) }}</span></template></div>
+          <div v-if="cost?.unpriced" class="text-[12.5px] text-white/50">{{ unpricedNote(cost.unpriced) }}</div>
         </div>
         <button type="button" :disabled="!canSave || saving" :aria-describedby="saveHint ? saveHintId : undefined" class="flex w-full h-[50px] rounded-full items-center justify-center text-[15px] font-semibold disabled:opacity-50" :class="[primaryBtnCls, focusRingCls, pressCls]" @click="save">{{ saveLabel }}</button>
         <p v-if="saveHint" :id="saveHintId" class="text-[13px] text-center" :class="inkSoftCls">{{ saveHint }}</p>
@@ -185,7 +187,7 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
         <span v-if="saveHint" :id="`${saveHintId}-bar`" class="text-[13px] leading-snug" :class="inkSoftCls">{{ saveHint }}</span>
         <div v-else class="min-w-0 text-[13px] leading-snug tabular-nums" :class="inkSoftCls">
           <div><span data-testid="per-serving-kcal" class="text-[15px] font-bold" :class="inkCls">{{ perServing.kcal }} kcal</span> per serving</div>
-          <div>{{ perServing.p }}g protein · {{ perServing.c }}g carbs</div>
+          <div>{{ perServing.p }}g protein · {{ perServing.c }}g carbs<template v-if="cost"> · <span data-testid="per-serving-cost-bar">{{ formatPrice(cost.perServing) }}</span></template></div>
         </div>
         <button type="button" :disabled="!canSave || saving" :aria-describedby="saveHint ? `${saveHintId}-bar` : undefined" class="h-11 px-5 shrink-0 rounded-full text-[14.5px] font-semibold disabled:opacity-50" :class="[primaryBtnCls, focusRingCls, pressCls]" @click="save">{{ saveLabel }}</button>
       </div>
