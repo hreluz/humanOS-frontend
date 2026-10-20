@@ -44,8 +44,9 @@ export function matchesQuery(name: string, query: string) {
 
 /** A user-created food, with the stepper sized to its unit. */
 export function buildFood(input: NewFoodInput, id: string): FoodItem {
-  const { name, per, unit, kcal, p, c, f } = input
+  const { name, per, unit, kcal, p, c, f, price } = input
   const food: FoodItem = { id, name: name.trim(), brand: 'My food', serving: '', per, unit, step: unit === 'g' || unit === 'ml' ? 10 : 1, kcal, p, c, f }
+  if (price !== undefined) food.price = price
   return { ...food, serving: formatPortion(food, per) }
 }
 
@@ -62,18 +63,19 @@ export function formatPortion(item: FoodItem, amount: number) {
 }
 
 /** Highest amount accepted per unit, so a stray keystroke can't log 50 kg of rice. */
-export const AMOUNT_LIMITS: Record<PortionUnit | ActivityUnit | 'kcal', number> = {
-  g: 5000, ml: 5000, piece: 50, serving: 50, min: 600, steps: 100000, kcal: 5000,
+export const AMOUNT_LIMITS: Record<PortionUnit | ActivityUnit | 'kcal' | 'price', number> = {
+  g: 5000, ml: 5000, piece: 50, serving: 50, min: 600, steps: 100000, kcal: 5000, price: 1000,
 }
 
 /**
  * Parses a typed amount: "96", "96.5", "96,5", "1,001". A comma followed by exactly three digits is a
  * thousands separator, otherwise a decimal comma. Returns null for empty, zero or non-numeric input.
  */
-export function parseAmount(text: string, { integer = false, max = Infinity }: { integer?: boolean, max?: number } = {}) {
+export function parseAmount(text: string, { integer = false, max = Infinity, decimals = 1 }: { integer?: boolean, max?: number, decimals?: number } = {}) {
   const t = text.trim().replace(/\s/g, '').replace(/,(?=\d{3}(?!\d))/g, '').replace(',', '.')
   if (!/^\d*\.?\d+$|^\d+\.$/.test(t)) return null
-  const n = integer ? Math.round(+t) : round1(+t)
+  const k = 10 ** decimals
+  const n = integer ? Math.round(+t) : Math.round(+t * k) / k
   return n > 0 ? Math.min(n, max) : null
 }
 

@@ -50,6 +50,19 @@ describe('parseAmount', () => {
     expect(parseAmount('0.2', { integer: true })).toBeNull()
     expect(parseAmount('250000', { max: AMOUNT_LIMITS.steps })).toBe(100000)
   })
+
+  it('rounds to 1 decimal by default', () => {
+    expect(parseAmount('1.26')).toBe(1.3)
+  })
+
+  it('rounds to the given decimals', () => {
+    const price = (t: string) => parseAmount(t, { decimals: 2, max: AMOUNT_LIMITS.price })
+    expect(price('1.155')).toBe(1.16)
+    expect(price('1,5')).toBe(1.5)
+    expect(price('1.50')).toBe(1.5)
+    expect(price('0')).toBeNull()
+    expect(price('5000')).toBe(1000)
+  })
 })
 
 describe('burnedKcal', () => {
@@ -133,6 +146,11 @@ describe('buildFood', () => {
     const tahini = buildFood({ name: ' Tahini ', per: 15, unit: 'g', kcal: 90, p: 2.6, c: 3.2, f: 8 }, 't')
     expect(tahini).toEqual({ id: 't', name: 'Tahini', brand: 'My food', serving: '15 g', per: 15, unit: 'g', step: 10, kcal: 90, p: 2.6, c: 3.2, f: 8 })
     expect(buildFood({ name: 'Wrap', per: 1, unit: 'piece', kcal: 140, p: 4, c: 24, f: 3 }, 'w')).toMatchObject({ serving: '1 piece', step: 1 })
+  })
+
+  it('keeps a typed price and adds no price key without one', () => {
+    expect(buildFood({ name: 'Tahini', per: 100, unit: 'g', kcal: 595, p: 17, c: 21, f: 54, price: 2.5 }, 't').price).toBe(2.5)
+    expect(buildFood({ name: 'Tahini', per: 100, unit: 'g', kcal: 595, p: 17, c: 21, f: 54 }, 't')).not.toHaveProperty('price')
   })
 })
 
