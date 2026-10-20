@@ -28,7 +28,7 @@ for (const theme of THEMES) {
     test('scrolled to the end', async ({ page }, testInfo) => {
       await fillRecipe(page)
       await scrollMain(page, 'bottom')
-      await expect(page.getByText(/^\d+g protein · \d+g carbs$/).filter({ visible: true })).toBeInViewport()
+      await expect(page.getByText(/^\d+g protein · \d+g carbs( · \$\d+\.\d{2})?$/).filter({ visible: true })).toBeInViewport()
       await shot(page, testInfo, 'recipe-mobile-end', theme)
     })
 

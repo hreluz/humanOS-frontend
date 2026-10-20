@@ -52,6 +52,14 @@ export function useRecipe() {
     return { kcal: Math.round(kcal / servings), p: Math.round(p / servings), c: Math.round(c / servings), f: Math.round(f / servings) }
   })
 
+  // The recipe's cost; null while no ingredient has a price. Rounding happens only in formatPrice.
+  const cost = computed(() => {
+    const ingredients = recipe.value?.ingredients ?? []
+    const { total, unpriced } = sumPrice(ingredients)
+    if (unpriced === ingredients.length) return null
+    return { total, perServing: total / (recipe.value?.servings ?? 1), unpriced }
+  })
+
   const canSave = computed(() => !!recipe.value?.name.trim() && recipe.value.ingredients.length > 0)
   const saveHint = computed(() => {
     if (!recipe.value || canSave.value) return ''
@@ -74,7 +82,7 @@ export function useRecipe() {
   }
 
   return {
-    recipe, catalog, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing,
+    recipe, catalog, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing, cost,
     refreshCatalog, changeServings, addIngredient, stepIngredient, removeIngredient, startCreate, save,
   }
 }
