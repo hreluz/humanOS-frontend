@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { FoodItem, PortionUnit } from '~/types/food'
 
-const props = defineProps<{ initialName?: string, submitLabel: string }>()
-const emit = defineEmits<{ created: [food: FoodItem] }>()
-const { newFood, amount, priceInvalid, missing, parsedFood, creating, create } = useIngredientForm(props.initialName)
+/** With `food`, the form edits that saved food instead of creating one. */
+const props = defineProps<{ initialName?: string, submitLabel: string, food?: FoodItem }>()
+const emit = defineEmits<{ created: [food: FoodItem], updated: [food: FoodItem] }>()
+const { newFood, amount, priceInvalid, missing, parsedFood, creating, save } = useIngredientForm(props.initialName, props.food)
 
 const UNITS: { key: PortionUnit, label: string }[] = [
   { key: 'g', label: 'g' }, { key: 'ml', label: 'ml' }, { key: 'piece', label: 'piece' }, { key: 'serving', label: 'serving' },
@@ -32,12 +33,14 @@ const priceLabel = computed(() => amount.value
 
 const nameInput = ref<HTMLInputElement>()
 const kcalInput = ref<HTMLInputElement>()
-// The first required field still empty: calories when the name came from a search.
-onMounted(() => (newFood.value.name.trim() ? kcalInput : nameInput).value?.focus())
+// The first required field still empty: calories when the name came from a search. Editing starts at the name.
+onMounted(() => (newFood.value.name.trim() && !props.food ? kcalInput : nameInput).value?.focus())
 
 async function onSubmit() {
-  const food = await create()
-  if (food) emit('created', food)
+  const food = await save()
+  if (!food) return
+  if (props.food) emit('updated', food)
+  else emit('created', food)
 }
 </script>
 

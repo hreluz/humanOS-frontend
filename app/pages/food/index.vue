@@ -15,8 +15,9 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
         <div class="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2">
           <button type="button" :class="btnCls" @click="open('ingredient')">New ingredient</button>
           <NuxtLink to="/food/recipes/new" class="text-center" :class="btnCls">New recipe</NuxtLink>
+          <NuxtLink to="/food/my-foods" class="text-center" :class="btnCls">My foods</NuxtLink>
           <button type="button" :class="btnCls" @click="open('planner')">Meal planner</button>
-          <button type="button" class="px-3.5 py-2 rounded-[10px] bg-ink text-[13px] font-semibold text-white" @click="openQuickLog('food')">+ Log food</button>
+          <button type="button" class="col-span-2 px-3.5 py-2 rounded-[10px] bg-ink text-[13px] font-semibold text-white" @click="openQuickLog('food')">+ Log food</button>
         </div>
       </div>
 
