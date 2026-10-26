@@ -6,8 +6,9 @@ export function useTraining() {
 
   const hasExercise = (name: string) => !!workout.value?.exercises.some(e => e.name === name)
 
-  async function addExercise(def: ExerciseDef) {
-    workout.value = await trainingService.addExerciseToWorkout(def)
+  /** Adds a library exercise to today's workout; `equip` is the equipment label shown on the workout card. */
+  async function addExercise(def: ExerciseDef, equip: string) {
+    workout.value = await trainingService.addExerciseToWorkout(def, equip)
   }
 
   return { workout, pending, hasExercise, addExercise }

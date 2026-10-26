@@ -81,6 +81,38 @@ for (const theme of THEMES) {
       await shot(page, testInfo, 'body-lower-chest-no-gym', theme)
     })
 
+    test('equipment tabs come from the catalog API, all on', async ({ page }, testInfo) => {
+      const tabs = page.getByRole('group', { name: 'Equipment' }).getByRole('button')
+      await expect(tabs).toHaveText(['Gym', 'Dumbbell', 'Bodyweight', 'Kettlebell', 'Bands', 'Accessories'])
+      for (const tab of await tabs.all()) await expect(tab).toHaveAttribute('aria-pressed', 'true')
+      // On phones the tabs sit below the figure; bring them into view so the screenshot shows how they wrap.
+      await page.getByRole('group', { name: 'Equipment' }).scrollIntoViewIfNeeded()
+      await shot(page, testInfo, 'body-equipment-tabs', theme)
+    })
+
+    test('only kettlebell on: no mocked exercise matches yet', async ({ page }, testInfo) => {
+      await tapMuscle(page, 'lower_chest')
+      await expect(page.getByRole('list', { name: 'Targets mid & lower chest' })).toBeVisible()
+      const equipment = page.getByRole('group', { name: 'Equipment' })
+      for (const name of ['Gym', 'Dumbbell', 'Bodyweight', 'Bands', 'Accessories']) await equipment.getByRole('button', { name }).click()
+      await expect(equipment.getByRole('button', { name: 'Kettlebell' })).toHaveAttribute('aria-pressed', 'true')
+      await expect(page.getByText('No exercises for this filter.')).toBeVisible()
+      await shot(page, testInfo, 'body-kettlebell-only', theme)
+    })
+
+    test('a gym exercise shows its API label on the workout card', async ({ page }) => {
+      await page.getByRole('radio', { name: 'Back' }).click()
+      await tapMuscle(page, 'lats')
+      const card = page.getByRole('list', { name: 'Targets lats' }).getByRole('listitem').filter({ hasText: 'Lat Pulldown' }).first()
+      await expect(card).toContainText('Gym')
+      await page.getByRole('button', { name: 'Add Lat Pulldown to today\'s workout' }).click()
+      await expect(card.getByText('Added')).toBeVisible()
+      await page.getByRole('link', { name: 'See today\'s workout →' }).click()
+      await expect(page).toHaveURL(/\/train$/)
+      const entry = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lat Pulldown', exact: true }) })
+      await expect(entry).toContainText('Gym')
+    })
+
     test('back view', async ({ page }, testInfo) => {
       await page.getByRole('radio', { name: 'Back' }).click()
       await tapMuscle(page, 'lats')

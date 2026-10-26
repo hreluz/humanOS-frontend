@@ -1,8 +1,5 @@
 import { BACK_MUSCLES, FRONT_MUSCLES } from 'body-muscles'
-import type { BodyView, EquipmentKey, MuscleKey } from '~/types/training'
-
-export const EQUIPMENT_LABELS: Record<EquipmentKey, string> = { gym: 'Gym', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight' }
-export const EQUIPMENT_KEYS = Object.keys(EQUIPMENT_LABELS) as EquipmentKey[]
+import type { BodyView, MuscleKey } from '~/types/training'
 
 /*
  * The figure's artwork is the anatomical path data from body-muscles (Apache-2.0, © Ivan Vulović).

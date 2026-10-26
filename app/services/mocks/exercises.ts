@@ -1,10 +1,13 @@
-import type { EquipmentKey, MuscleKey } from '~/types/training'
+import type { MuscleKey } from '~/types/training'
+
+/** The equipment groups the mocked exercises use. A union, so a typo in the list below fails typecheck. */
+type MockEquipmentGroup = 'gym' | 'dumbbell' | 'bodyweight'
 
 /** An exercise as the API would return it: photos are referenced by free-exercise-db id. */
 export interface MockExercise {
   id: string
   name: string
-  equipment: EquipmentKey
+  equipmentGroup: MockEquipmentGroup
   cue: string
   /** Muscles the exercise mainly trains. */
   primary: MuscleKey[]
@@ -16,8 +19,8 @@ export interface MockExercise {
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-function ex(name: string, equipment: EquipmentKey, cue: string, primary: MuscleKey[], secondary: MuscleKey[], photoIds: string[] = []): MockExercise {
-  return { id: slug(name), name, equipment, cue, primary, secondary, photoIds }
+function ex(name: string, equipmentGroup: MockEquipmentGroup, cue: string, primary: MuscleKey[], secondary: MuscleKey[], photoIds: string[] = []): MockExercise {
+  return { id: slug(name), name, equipmentGroup, cue, primary, secondary, photoIds }
 }
 
 // Shorthands for muscles that are almost always tagged together.

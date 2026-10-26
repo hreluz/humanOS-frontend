@@ -1,6 +1,6 @@
 import type { components } from '~/types/api.generated'
-import type { EquipmentKey, ExerciseDef, ExercisePhoto, MuscleAreaDef, MuscleKey, Workout } from '~/types/training'
-import { EQUIPMENT_LABELS, isMuscleKey } from '~/utils/muscles'
+import type { EquipmentGroupDef, EquipmentGroupKey, ExerciseDef, ExercisePhoto, MuscleAreaDef, MuscleKey, Workout } from '~/types/training'
+import { isMuscleKey } from '~/utils/muscles'
 import { api } from './api'
 import { delay } from './mocks/delay'
 import { EXERCISES, type MockExercise } from './mocks/exercises'
@@ -8,6 +8,7 @@ import { TODAY_WORKOUT } from './mocks/training'
 
 // Wire types come from the backend's OpenAPI contract (`pnpm gen:api`).
 type MuscleAreaResource = components['schemas']['MuscleAreaResource']
+type EquipmentGroupResource = components['schemas']['EquipmentGroupResource']
 
 /** The muscle catalog in display order. Muscles the figure can't draw are dropped, and so are areas left empty. */
 export function getMuscleAreas(): Promise<MuscleAreaDef[]> {
@@ -19,6 +20,17 @@ export function getMuscleAreas(): Promise<MuscleAreaDef[]> {
         muscles: (area.muscles ?? []).flatMap(m => isMuscleKey(m.key) ? [{ key: m.key, label: m.label, view: m.body_view }] : []),
       }))
       .filter(area => area.muscles.length),
+  )
+}
+
+/** The equipment catalog in display order. */
+export function getEquipmentGroups(): Promise<EquipmentGroupDef[]> {
+  return api<{ data: EquipmentGroupResource[] }>('/v1/training/equipment-groups').then(({ data }) =>
+    data.map(group => ({
+      key: group.key,
+      label: group.label,
+      equipment: (group.equipment ?? []).map(e => ({ key: e.key, label: e.label })),
+    })),
   )
 }
 
@@ -55,18 +67,18 @@ function toExercise({ photoIds, ...rest }: MockExercise): ExerciseDef {
  * Library exercises that train `muscle` with the given equipment: the ones that target it first, then the ones it assists in.
  * Targeting exercises are ordered most direct first: the muscle listed first, then the fewest other main muscles.
  */
-export async function getExercises(muscle: MuscleKey, equipment: EquipmentKey[]): Promise<ExerciseDef[]> {
+export async function getExercises(muscle: MuscleKey, groups: EquipmentGroupKey[]): Promise<ExerciseDef[]> {
   await delay()
-  const available = EXERCISES.filter(e => equipment.includes(e.equipment))
+  const available = EXERCISES.filter(e => groups.includes(e.equipmentGroup))
   const targeting = available
     .filter(e => e.primary.includes(muscle))
     .sort((a, b) => a.primary.indexOf(muscle) - b.primary.indexOf(muscle) || a.primary.length - b.primary.length)
   return [...targeting, ...available.filter(e => e.secondary.includes(muscle))].map(toExercise)
 }
 
-/** Appends a library exercise to today's workout; returns the updated workout. */
-export async function addExerciseToWorkout(def: ExerciseDef): Promise<Workout> {
+/** Appends a library exercise to today's workout; `equip` is the label shown on the workout card. Returns the updated workout. */
+export async function addExerciseToWorkout(def: ExerciseDef, equip: string): Promise<Workout> {
   await delay()
-  workout.exercises.push({ name: def.name, equip: EQUIPMENT_LABELS[def.equipment], sets: [...DEFAULT_SETS] })
+  workout.exercises.push({ name: def.name, equip, sets: [...DEFAULT_SETS] })
   return structuredClone(workout)
 }
