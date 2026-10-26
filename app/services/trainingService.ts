@@ -1,9 +1,28 @@
-import type { EquipmentKey, ExerciseDef, ExercisePhoto, MuscleKey, Workout } from '~/types/training'
-import { EQUIPMENT_LABELS } from '~/utils/muscles'
+import type { components } from '~/types/api.generated'
+import type { EquipmentKey, ExerciseDef, ExercisePhoto, MuscleAreaDef, MuscleKey, Workout } from '~/types/training'
+import { EQUIPMENT_LABELS, isMuscleKey } from '~/utils/muscles'
+import { api } from './api'
 import { delay } from './mocks/delay'
 import { EXERCISES, type MockExercise } from './mocks/exercises'
 import { TODAY_WORKOUT } from './mocks/training'
 
+// Wire types come from the backend's OpenAPI contract (`pnpm gen:api`).
+type MuscleAreaResource = components['schemas']['MuscleAreaResource']
+
+/** The muscle catalog in display order. Muscles the figure can't draw are dropped, and so are areas left empty. */
+export function getMuscleAreas(): Promise<MuscleAreaDef[]> {
+  return api<{ data: MuscleAreaResource[] }>('/v1/training/muscle-areas').then(({ data }) =>
+    data
+      .map(area => ({
+        key: area.key,
+        label: area.label,
+        muscles: (area.muscles ?? []).flatMap(m => isMuscleKey(m.key) ? [{ key: m.key, label: m.label, view: m.body_view }] : []),
+      }))
+      .filter(area => area.muscles.length),
+  )
+}
+
+// Exercises and today's workout are still mocked.
 // Module-scoped copy stands in for the backend; callers only ever get clones.
 const workout: Workout = structuredClone(TODAY_WORKOUT)
 

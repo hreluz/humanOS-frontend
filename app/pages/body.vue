@@ -4,6 +4,7 @@ import type { BodyView, ExerciseDef, MuscleKey } from '~/types/training'
 definePageMeta({ tab: 'body' })
 
 const { view, selected, equipment, exercises, loading, select, toggleEquipment } = useBodyMap()
+const { areas, labels, label, pending: musclesPending, failed: musclesFailed, retry } = useMuscleCatalog()
 const { hasExercise, addExercise } = useTraining()
 const { openPhotos } = useExercisePhotos()
 
@@ -13,10 +14,10 @@ const VIEWS: { key: BodyView, label: string }[] = [{ key: 'front', label: 'Front
 const sections = computed(() => {
   const muscle = selected.value
   if (!muscle) return []
-  const label = MUSCLE_LABELS[muscle]
+  const name = label(muscle).toLowerCase()
   return [
-    { key: 'targets', title: `Targets ${label.toLowerCase()}`, items: exercises.value.filter(e => e.primary.includes(muscle)) },
-    { key: 'assists', title: `Also works ${label.toLowerCase()}`, items: exercises.value.filter(e => !e.primary.includes(muscle)) },
+    { key: 'targets', title: `Targets ${name}`, items: exercises.value.filter(e => e.primary.includes(muscle)) },
+    { key: 'assists', title: `Also works ${name}`, items: exercises.value.filter(e => !e.primary.includes(muscle)) },
   ].filter(section => section.items.length)
 })
 
@@ -33,6 +34,18 @@ function pick(muscle: MuscleKey) {
   if (matchMedia('(max-width: 767px)').matches) {
     const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
     nextTick(() => resultsHeading.value?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }))
+  }
+}
+
+// Kept on the page so the error block (with its button reading "Retrying…") stays up while a retry runs.
+const retrying = ref(false)
+async function retryMuscles() {
+  retrying.value = true
+  try {
+    await retry()
+  }
+  finally {
+    retrying.value = false
   }
 }
 
@@ -69,23 +82,36 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
         </button>
       </div>
       <div class="mx-auto w-full max-w-[140px] md:max-w-[240px]">
-        <AppBodyFigure :view="view" :selected="selected" @select="pick" />
+        <AppBodyFigure :view="view" :selected="selected" :labels="labels" @select="pick" />
       </div>
       <p class="text-[12.5px] text-center" :class="inkFaintCls">Tap a muscle on the body or pick one below.</p>
-      <div class="flex flex-col gap-2.5">
-        <div v-for="group in MUSCLE_AREAS" :key="group.area" role="group" :aria-label="group.label">
+      <div v-if="musclesFailed || retrying" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 py-1" role="alert">
+        <span class="text-[13.5px]" :class="inkSoftCls">Couldn't load muscles.</span>
+        <button
+          type="button"
+          class="min-h-11 sm:min-h-8 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black disabled:opacity-50"
+          :class="focusRingCls"
+          :disabled="retrying"
+          @click="retryMuscles"
+        >
+          {{ retrying ? 'Retrying…' : 'Retry' }}
+        </button>
+      </div>
+      <p v-else-if="musclesPending" class="text-[13.5px] text-center py-1" :class="inkFaintCls">Loading muscles…</p>
+      <div v-else class="flex flex-col gap-2.5">
+        <div v-for="group in areas" :key="group.key" role="group" :aria-label="group.label">
           <div class="text-[11px] font-bold tracking-wide uppercase mb-1" :class="inkFaintCls">{{ group.label }}</div>
           <div class="flex flex-wrap gap-1.5">
             <button
               v-for="m in group.muscles"
-              :key="m"
+              :key="m.key"
               type="button"
               class="min-h-9 sm:min-h-7 px-2.5 rounded-full text-[12px] font-semibold"
-              :class="[focusRingCls, selected === m ? 'bg-accent-coral text-white dark:bg-accent-coral-dark' : [bgCls, inkSoftCls]]"
-              :aria-pressed="selected === m"
-              @click="pick(m)"
+              :class="[focusRingCls, selected === m.key ? 'bg-accent-coral text-white dark:bg-accent-coral-dark' : [bgCls, inkSoftCls]]"
+              :aria-pressed="selected === m.key"
+              @click="pick(m.key)"
             >
-              {{ MUSCLE_LABELS[m] }}
+              {{ m.label }}
             </button>
           </div>
         </div>
@@ -98,7 +124,7 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
     <div class="flex flex-col gap-3.5">
       <div class="flex flex-col gap-2.5">
         <h2 ref="resultsHeading" class="text-[20px] font-bold tracking-tight scroll-mt-4" :class="inkCls">
-          {{ selected ? MUSCLE_LABELS[selected] : 'Find exercises' }}
+          {{ selected ? label(selected) : 'Find exercises' }}
         </h2>
         <div class="flex flex-wrap gap-2" role="group" aria-label="Equipment">
           <button
@@ -156,7 +182,7 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
                       w.muscle === selected ? ACCENT.coral.icon : w.primary ? inkCls : inkFaintCls,
                       w.primary ? 'font-semibold' : '',
                     ]"
-                  >{{ MUSCLE_LABELS[w.muscle] }}</span><span v-if="i < worksList(ex).length - 1">, </span>
+                  >{{ label(w.muscle) }}</span><span v-if="i < worksList(ex).length - 1">, </span>
                 </template>
               </p>
             </div>
