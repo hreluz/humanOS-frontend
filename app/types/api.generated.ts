@@ -288,6 +288,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/training/muscle-areas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List muscle areas
+         * @description Lists the body areas in display order, each with its muscles in display order. Clients use
+         *     it to draw the body map and to label the muscle keys that exercises return.
+         */
+        get: operations["training.muscleArea"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/training/equipment-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List equipment groups
+         * @description Lists the equipment groups in display order, each with its equipment in display order.
+         *     Clients use it to draw the equipment tabs and to label the equipment keys that exercises
+         *     return.
+         */
+        get: operations["training.equipmentGroup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -302,6 +345,30 @@ export interface components {
             /** @example 1|xR8nQ2vLk9Tz4WmP7bYc3HdF6gJs1NaE5uVo0iKq6b79c89d */
             token: string;
             user: components["schemas"]["UserResource"];
+        };
+        /**
+         * BodyView
+         * @enum {string}
+         */
+        BodyView: "front" | "back";
+        /** EquipmentGroupResource */
+        EquipmentGroupResource: {
+            /** @example gym */
+            key: string;
+            /** @example Gym */
+            label: string;
+            /** @description The equipment in the group, in display order. */
+            equipment?: components["schemas"]["EquipmentResource"][];
+        };
+        /** EquipmentResource */
+        EquipmentResource: {
+            /**
+             * @description Stable identifier, used by exercises to reference the equipment.
+             * @example barbell
+             */
+            key: string;
+            /** @example Barbell */
+            label: string;
         };
         /** ForgotPasswordRequest */
         ForgotPasswordRequest: {
@@ -322,6 +389,30 @@ export interface components {
             password: string;
             /** @example iPhone 15 */
             device_name?: string | null;
+        };
+        /** MuscleAreaResource */
+        MuscleAreaResource: {
+            /** @example chest */
+            key: string;
+            /** @example Chest */
+            label: string;
+            /** @description The muscles in the area, in display order. */
+            muscles?: components["schemas"]["MuscleResource"][];
+        };
+        /** MuscleResource */
+        MuscleResource: {
+            /**
+             * @description Stable identifier, used by exercises to reference the muscle.
+             * @example upper_chest
+             */
+            key: string;
+            /** @example Upper chest */
+            label: string;
+            /**
+             * @description The body map view the muscle is drawn on.
+             * @example front
+             */
+            body_view: components["schemas"]["BodyView"];
         };
         /** ProfileResource */
         ProfileResource: {
@@ -993,6 +1084,52 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["TargetWeightEntryResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "training.muscleArea": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `MuscleAreaResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["MuscleAreaResource"] & Record<string, never>)[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "training.equipmentGroup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `EquipmentGroupResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["EquipmentGroupResource"] & Record<string, never>)[];
                     };
                 };
             };

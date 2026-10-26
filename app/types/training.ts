@@ -19,19 +19,31 @@ export interface Workout {
 }
 
 export type MuscleKey
-  = | 'upperChest' | 'lowerChest' | 'serratus'
-    | 'frontDelts' | 'sideDelts' | 'rearDelts'
-    | 'biceps' | 'tricepsLong' | 'tricepsLateral' | 'forearmFlexors' | 'forearmExtensors'
-    | 'upperAbs' | 'lowerAbs' | 'obliques'
-    | 'upperTraps' | 'midTraps' | 'lowerTraps' | 'lats' | 'lowerBack'
-    | 'gluteMax' | 'gluteMed' | 'hipFlexors' | 'adductors' | 'quads'
-    | 'hamstringsInner' | 'hamstringsOuter' | 'gastrocnemius' | 'soleus' | 'tibialis'
-
-export type MuscleArea = 'chest' | 'shoulders' | 'arms' | 'core' | 'back' | 'legs'
+  = | 'upper_chest' | 'lower_chest' | 'serratus'
+    | 'front_delts' | 'side_delts' | 'rear_delts'
+    | 'biceps' | 'triceps_long' | 'triceps_lateral' | 'forearm_flexors' | 'forearm_extensors'
+    | 'upper_abs' | 'lower_abs' | 'obliques'
+    | 'neck' | 'upper_traps' | 'mid_traps' | 'lower_traps' | 'lats' | 'lower_back'
+    | 'glute_max' | 'glute_med' | 'hip_flexors' | 'adductors' | 'quads'
+    | 'hamstrings_inner' | 'hamstrings_outer' | 'gastrocnemius' | 'soleus' | 'tibialis'
 
 export type EquipmentKey = 'gym' | 'dumbbell' | 'bodyweight'
 
 export type BodyView = 'front' | 'back'
+
+/** A muscle from the catalog API. `view` is the side the figure turns to when the muscle is picked. */
+export interface MuscleDef {
+  key: MuscleKey
+  label: string
+  view: BodyView
+}
+
+/** A body area from the catalog API, with its muscles in display order. */
+export interface MuscleAreaDef {
+  key: string
+  label: string
+  muscles: MuscleDef[]
+}
 
 export interface ExercisePhoto {
   src: string

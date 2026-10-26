@@ -3,16 +3,22 @@ import * as trainingService from '~/services/trainingService'
 
 /** Body map state: which side is shown, the picked muscle, the equipment filter and the matching exercises. */
 export function useBodyMap() {
+  const { viewOf } = useMuscleCatalog()
   const view = ref<BodyView>('front')
   const selected = ref<MuscleKey | null>(null)
   const equipment = ref<EquipmentKey[]>([...EQUIPMENT_KEYS])
   const exercises = ref<ExerciseDef[]>([])
   const loading = ref(false)
 
-  /** Picks a muscle, turning the figure around if it isn't drawn on the side being shown. */
+  /**
+   * Picks a muscle. If it isn't drawn on the side being shown, the figure turns to the muscle's side from the catalog,
+   * or to whichever side draws it.
+   */
   function select(muscle: MuscleKey) {
     selected.value = muscle
-    if (!isOnView(muscle, view.value)) view.value = muscleView(muscle)
+    if (isOnView(muscle, view.value)) return
+    const side = viewOf(muscle)
+    view.value = side && isOnView(muscle, side) ? side : view.value === 'front' ? 'back' : 'front'
   }
 
   function toggleEquipment(key: EquipmentKey) {
