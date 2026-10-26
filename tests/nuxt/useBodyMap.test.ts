@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { BACK_MUSCLES, FRONT_MUSCLES } from 'body-muscles'
 import type { MuscleKey } from '~/types/training'
 import { api } from '~/services/api'
+import * as trainingService from '~/services/trainingService'
 import { MOCK_LATENCY_MS } from '~/services/mocks/delay'
 import { EXERCISES } from '~/services/mocks/exercises'
 
@@ -42,9 +43,43 @@ const muscleAreasResponse = {
   })),
 }
 
+/** The six equipment groups, as `GET /v1/training/equipment-groups` returns them. */
+const GROUP_KEYS = ['gym', 'dumbbell', 'bodyweight', 'kettlebell', 'bands', 'accessories']
+const equipmentGroupsResponse = {
+  data: [
+    { key: 'gym', label: 'Gym', equipment: [{ key: 'barbell', label: 'Barbell' }, { key: 'machine', label: 'Machine' }, { key: 'cable', label: 'Cable' }, { key: 'ez_bar', label: 'EZ curl bar' }] },
+    { key: 'dumbbell', label: 'Dumbbell', equipment: [{ key: 'dumbbell', label: 'Dumbbell' }] },
+    { key: 'bodyweight', label: 'Bodyweight', equipment: [{ key: 'body_only', label: 'Body only' }] },
+    { key: 'kettlebell', label: 'Kettlebell', equipment: [{ key: 'kettlebell', label: 'Kettlebell' }] },
+    { key: 'bands', label: 'Bands', equipment: [{ key: 'bands', label: 'Resistance bands' }] },
+    { key: 'accessories', label: 'Accessories', equipment: [{ key: 'medicine_ball', label: 'Medicine ball' }, { key: 'exercise_ball', label: 'Exercise ball' }, { key: 'foam_roll', label: 'Foam roll' }, { key: 'other', label: 'Other' }] },
+  ],
+}
+
+/** Routes the mocked `api` by URL: both catalogs come from it. */
+function mockCatalogs(equipmentGroups: () => Promise<unknown> = () => Promise.resolve(equipmentGroupsResponse)) {
+  vi.mocked(api).mockImplementation((url: string) => url === '/v1/training/equipment-groups' ? equipmentGroups() : Promise.resolve(muscleAreasResponse))
+}
+
 beforeEach(() => {
-  vi.mocked(api).mockResolvedValue(muscleAreasResponse)
+  vi.restoreAllMocks()
+  mockCatalogs()
 })
+
+/** Forgets the loaded equipment catalog, so the next `useBodyMap` requests it again. */
+function clearEquipmentCatalog() {
+  clearNuxtState('equipment-groups')
+  clearNuxtData('load:equipment-groups')
+}
+
+/** A promise the test settles by hand, to look at the state while a request is in flight. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
 
 /** A body map whose muscle catalog has loaded, so `select` can use each muscle's side. */
 async function loadedBodyMap() {
@@ -106,11 +141,46 @@ describe('exercise library', () => {
 })
 
 describe('useBodyMap', () => {
-  it('starts on the front with every equipment type and no exercises', () => {
+  it('starts on the front with all six groups on, in API order, and no exercises', async () => {
     const map = useBodyMap()
+    await vi.waitUntil(() => map.equipmentReady.value)
     expect(map.view.value).toBe('front')
-    expect(map.equipment.value).toEqual(['gym', 'dumbbell', 'bodyweight'])
+    expect(map.equipment.value).toEqual(GROUP_KEYS)
     expect(map.exercises.value).toEqual([])
+  })
+
+  it('turns on every group that arrives after it was created', async () => {
+    clearEquipmentCatalog()
+    const request = deferred<unknown>()
+    mockCatalogs(() => request.promise)
+
+    const map = useBodyMap()
+    expect(map.equipmentReady.value).toBe(false)
+    expect(map.equipment.value).toEqual([])
+
+    request.resolve(equipmentGroupsResponse)
+    await vi.waitUntil(() => map.equipmentReady.value)
+    expect(map.equipment.value).toEqual(GROUP_KEYS)
+  })
+
+  it('doesn\'t look up exercises before the groups load', async () => {
+    clearEquipmentCatalog()
+    const request = deferred<unknown>()
+    mockCatalogs(() => request.promise)
+    const getExercises = vi.spyOn(trainingService, 'getExercises')
+
+    const map = useBodyMap()
+    map.select('lats')
+    await settle()
+    expect(getExercises).not.toHaveBeenCalled()
+    expect(map.exercises.value).toEqual([])
+    expect(map.loading.value).toBe(false)
+
+    request.resolve(equipmentGroupsResponse)
+    await vi.waitUntil(() => map.equipmentReady.value)
+    await settle()
+    expect(getExercises).toHaveBeenCalledWith('lats', GROUP_KEYS)
+    expect(map.exercises.value.length).toBeGreaterThan(0)
   })
 
   it('lists exercises that target the muscle first, then the ones it assists in', async () => {
@@ -134,24 +204,36 @@ describe('useBodyMap', () => {
     expect(map.exercises.value[0]!.primary).toEqual(['lats'])
   })
 
-  it('filters by equipment and keeps the chip order stable', async () => {
+  it('filters by equipment and keeps API order when a group is turned back on', async () => {
     const map = useBodyMap()
     map.select('lower_chest')
     await settle()
     map.toggleEquipment('gym')
     await settle()
-    expect(map.equipment.value).toEqual(['dumbbell', 'bodyweight'])
-    expect(map.exercises.value.some(e => e.equipment === 'gym')).toBe(false)
+    expect(map.equipment.value).toEqual(['dumbbell', 'bodyweight', 'kettlebell', 'bands', 'accessories'])
+    expect(map.exercises.value.length).toBeGreaterThan(0)
+    expect(map.exercises.value.some(e => e.equipmentGroup === 'gym')).toBe(false)
     map.toggleEquipment('gym')
-    expect(map.equipment.value).toEqual(['gym', 'dumbbell', 'bodyweight'])
+    expect(map.equipment.value).toEqual(GROUP_KEYS)
+  })
+
+  it('finds no exercises with only kettlebell on', async () => {
+    const map = useBodyMap()
+    map.select('lower_chest')
+    await settle()
+    for (const key of GROUP_KEYS.filter(k => k !== 'kettlebell')) map.toggleEquipment(key)
+    await settle()
+    expect(map.equipment.value).toEqual(['kettlebell'])
+    expect(map.exercises.value).toEqual([])
   })
 
   it('shows nothing when every equipment type is off', async () => {
     const map = useBodyMap()
     map.select('quads')
     await settle()
-    for (const key of ['gym', 'dumbbell', 'bodyweight'] as const) map.toggleEquipment(key)
+    for (const key of GROUP_KEYS) map.toggleEquipment(key)
     await settle()
+    expect(map.equipment.value).toEqual([])
     expect(map.exercises.value).toEqual([])
   })
 
@@ -203,14 +285,16 @@ describe('exercise photos', () => {
 
 describe('useTraining.addExercise', () => {
   it('appends a library exercise to today\'s workout', async () => {
+    // Wipes today's workout, and the catalogs with it, so their loads run again too.
     clearNuxtState()
+    clearNuxtData()
     const training = useTraining()
     const map = useBodyMap()
     map.select('lats')
     await settle()
     const pullUp = map.exercises.value.find(e => e.name === 'Pull-up')!
     expect(training.hasExercise('Pull-up')).toBe(false)
-    await training.addExercise(pullUp)
+    await training.addExercise(pullUp, 'Bodyweight')
     expect(training.hasExercise('Pull-up')).toBe(true)
     expect(training.workout.value!.exercises.at(-1)).toMatchObject({ name: 'Pull-up', equip: 'Bodyweight' })
   })

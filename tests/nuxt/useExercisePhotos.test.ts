@@ -3,7 +3,7 @@ import type { ExerciseDef } from '~/types/training'
 
 const photo = (n: number) => ({ src: `https://example.com/${n}.jpg`, caption: `Photo ${n}` })
 const pulldown: ExerciseDef = {
-  id: 'lat-pulldown', name: 'Lat Pulldown', primary: ['lats'], secondary: [], equipment: 'gym', cue: 'Elbows down.',
+  id: 'lat-pulldown', name: 'Lat Pulldown', primary: ['lats'], secondary: [], equipmentGroup: 'gym', cue: 'Elbows down.',
   photos: [photo(0), photo(1), photo(2)],
 }
 

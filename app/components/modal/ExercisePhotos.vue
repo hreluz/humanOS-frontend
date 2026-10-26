@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { exercise, photos, index, current, goTo, next, prev } = useExercisePhotos()
+const { label: equipmentLabel } = useEquipmentCatalog()
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowRight') next()
@@ -38,7 +39,7 @@ const arrowCls = [
     <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
       <div class="min-w-0">
         <h2 class="text-[17px] font-bold" :class="inkCls">{{ exercise.name }}</h2>
-        <p class="text-[13px]" :class="inkSoftCls">{{ EQUIPMENT_LABELS[exercise.equipment] }} · {{ exercise.cue }}</p>
+        <p class="text-[13px]" :class="inkSoftCls">{{ equipmentLabel(exercise.equipmentGroup) }} · {{ exercise.cue }}</p>
       </div>
       <ModalCloseButton />
     </div>

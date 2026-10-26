@@ -27,7 +27,21 @@ export type MuscleKey
     | 'glute_max' | 'glute_med' | 'hip_flexors' | 'adductors' | 'quads'
     | 'hamstrings_inner' | 'hamstrings_outer' | 'gastrocnemius' | 'soleus' | 'tibialis'
 
-export type EquipmentKey = 'gym' | 'dumbbell' | 'bodyweight'
+/** A group key from the equipment catalog API (`gym`, `kettlebell`, …). Exercises are tagged with one. */
+export type EquipmentGroupKey = string
+
+/** A piece of equipment from the catalog API. Not shown yet; kept so exercises can reference it later. */
+export interface EquipmentDef {
+  key: string
+  label: string
+}
+
+/** An equipment group from the catalog API: one filter tab on the body map, with its equipment in display order. */
+export interface EquipmentGroupDef {
+  key: EquipmentGroupKey
+  label: string
+  equipment: EquipmentDef[]
+}
 
 export type BodyView = 'front' | 'back'
 
@@ -58,7 +72,7 @@ export interface ExerciseDef {
   primary: MuscleKey[]
   /** Muscles that assist. */
   secondary: MuscleKey[]
-  equipment: EquipmentKey
+  equipmentGroup: EquipmentGroupKey
   cue: string
   /** The exercise's start and end positions first, then close variants (similar machines). */
   photos: ExercisePhoto[]

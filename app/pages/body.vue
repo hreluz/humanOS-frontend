@@ -5,6 +5,13 @@ definePageMeta({ tab: 'body' })
 
 const { view, selected, equipment, exercises, loading, select, toggleEquipment } = useBodyMap()
 const { areas, labels, label, pending: musclesPending, failed: musclesFailed, retry } = useMuscleCatalog()
+const {
+  groups: equipmentGroups,
+  label: equipmentLabel,
+  pending: equipmentPending,
+  failed: equipmentFailed,
+  retry: retryEquipmentCatalog,
+} = useEquipmentCatalog()
 const { hasExercise, addExercise } = useTraining()
 const { openPhotos } = useExercisePhotos()
 
@@ -49,11 +56,24 @@ async function retryMuscles() {
   }
 }
 
+// Same for the equipment tabs. While the error block is up, the results area stays empty instead of showing a wrong message.
+const retryingEquipment = ref(false)
+const equipmentError = computed(() => equipmentFailed.value || retryingEquipment.value)
+async function retryEquipment() {
+  retryingEquipment.value = true
+  try {
+    await retryEquipmentCatalog()
+  }
+  finally {
+    retryingEquipment.value = false
+  }
+}
+
 const adding = ref<string | null>(null)
 async function add(def: ExerciseDef) {
   adding.value = def.id
   try {
-    await addExercise(def)
+    await addExercise(def, equipmentLabel(def.equipmentGroup))
   }
   finally {
     adding.value = null
@@ -126,16 +146,29 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
         <h2 ref="resultsHeading" class="text-[20px] font-bold tracking-tight scroll-mt-4" :class="inkCls">
           {{ selected ? label(selected) : 'Find exercises' }}
         </h2>
-        <div class="flex flex-wrap gap-2" role="group" aria-label="Equipment">
+        <div v-if="equipmentError" class="flex flex-wrap items-center gap-x-3 gap-y-2" role="alert">
+          <span class="text-[13.5px]" :class="inkSoftCls">Couldn't load equipment.</span>
           <button
-            v-for="key in EQUIPMENT_KEYS"
-            :key="key"
             type="button"
-            :class="[chipCls, focusRingCls, equipment.includes(key) ? chipOnCls : chipOffCls]"
-            :aria-pressed="equipment.includes(key)"
-            @click="toggleEquipment(key)"
+            class="min-h-11 sm:min-h-8 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black disabled:opacity-50"
+            :class="focusRingCls"
+            :disabled="retryingEquipment"
+            @click="retryEquipment"
           >
-            {{ EQUIPMENT_LABELS[key] }}
+            {{ retryingEquipment ? 'Retrying…' : 'Retry' }}
+          </button>
+        </div>
+        <p v-else-if="equipmentPending" class="text-[13.5px]" :class="inkFaintCls">Loading equipment…</p>
+        <div v-else class="flex flex-wrap gap-2" role="group" aria-label="Equipment">
+          <button
+            v-for="group in equipmentGroups"
+            :key="group.key"
+            type="button"
+            :class="[chipCls, focusRingCls, equipment.includes(group.key) ? chipOnCls : chipOffCls]"
+            :aria-pressed="equipment.includes(group.key)"
+            @click="toggleEquipment(group.key)"
+          >
+            {{ group.label }}
           </button>
         </div>
       </div>
@@ -143,6 +176,10 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
       <div v-if="!selected" class="rounded-2xl px-5 py-8 shadow-xs text-center" :class="cardCls">
         <div class="text-[15px] font-semibold mb-1" :class="inkCls">Tap a muscle to see exercises</div>
         <div class="text-[13.5px]" :class="inkSoftCls">Choose the equipment you have and add exercises to today's workout.</div>
+      </div>
+      <template v-else-if="equipmentError" />
+      <div v-else-if="equipmentPending" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkFaintCls]">
+        Loading exercises…
       </div>
       <div v-else-if="!equipment.length" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
         Pick at least one type of equipment.
@@ -171,7 +208,7 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
             <div class="flex-1 min-w-0">
               <div class="flex flex-wrap items-baseline gap-x-2">
                 <h4 class="text-[15.5px] font-bold" :class="inkCls">{{ ex.name }}</h4>
-                <span class="text-[12.5px]" :class="inkFaintCls">{{ EQUIPMENT_LABELS[ex.equipment] }}</span>
+                <span class="text-[12.5px]" :class="inkFaintCls">{{ equipmentLabel(ex.equipmentGroup) }}</span>
               </div>
               <p class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ ex.cue }}</p>
               <p class="text-[12.5px] mt-1.5" :class="inkFaintCls">
