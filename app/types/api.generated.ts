@@ -331,6 +331,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/training/exercises": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List exercises
+         * @description Returns the exercise catalog, paginated and sorted by name, or ranked by the muscle when
+         *     `muscle` is set. Filters combine with AND, and values inside one array filter combine with
+         *     OR. `instructions` and `source_id` are only returned by the detail endpoint.
+         */
+        get: operations["exercise.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/training/exercises/{exercise}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show an exercise
+         * @description Returns one exercise by its key, with its photos and instructions. Muscles and equipment are
+         *     keys: clients get their labels from `/muscle-areas` and `/equipment-groups`.
+         */
+        get: operations["exercise.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -369,6 +412,115 @@ export interface components {
             key: string;
             /** @example Barbell */
             label: string;
+        };
+        /**
+         * ExerciseCategory
+         * @enum {string}
+         */
+        ExerciseCategory: "strength" | "powerlifting" | "olympic_weightlifting" | "strongman" | "plyometrics" | "cardio" | "stretching";
+        /**
+         * ExerciseForce
+         * @enum {string}
+         */
+        ExerciseForce: "push" | "pull" | "static";
+        /**
+         * ExerciseLevel
+         * @enum {string}
+         */
+        ExerciseLevel: "beginner" | "intermediate" | "expert";
+        /**
+         * ExerciseMechanic
+         * @enum {string}
+         */
+        ExerciseMechanic: "compound" | "isolation";
+        /** ExercisePhotoResource */
+        ExercisePhotoResource: {
+            /**
+             * @description Full URL of the photo.
+             * @example https://raw.githubusercontent.com/yuhonas/free-exercise-db/f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg
+             */
+            url: string;
+            /** @example Start */
+            caption: string;
+            /**
+             * @description Where the photo comes from.
+             * @example free_exercise_db
+             */
+            source: components["schemas"]["PhotoSource"];
+            /** @example Unlicense */
+            license: string;
+            /**
+             * @description Photo author, only set for wger photos. Clients must show it when set.
+             * @example null
+             */
+            author: string | null;
+            /**
+             * @description Link to the photo's source, only set for wger photos. Clients must show it when set.
+             * @example null
+             */
+            credit_url: string | null;
+        };
+        /** ExerciseResource */
+        ExerciseResource: {
+            /**
+             * @description Stable identifier, used in the URL.
+             * @example barbell_bench_press
+             */
+            key: string;
+            /** @example Barbell Bench Press */
+            name: string;
+            /** @example strength */
+            category: components["schemas"]["ExerciseCategory"];
+            level: components["schemas"]["ExerciseLevel"] | null;
+            mechanic: components["schemas"]["ExerciseMechanic"] | null;
+            force: components["schemas"]["ExerciseForce"] | null;
+            /**
+             * @description One-line coaching cue.
+             * @example Shoulder blades pinned back, bar to mid-chest.
+             */
+            cue: string | null;
+            /**
+             * @description Equipment key. The label comes from `/equipment-groups`.
+             * @example barbell
+             */
+            equipment: string;
+            /**
+             * @description Equipment group key. The label comes from `/equipment-groups`.
+             * @example gym
+             */
+            equipment_group: string;
+            /**
+             * @description Keys of the muscles doing most of the work, most direct first. Every exercise has at least one. A muscle appears in `primary` or `secondary`, never both, and muscles that only stabilise are in neither. For example, the chest does the pressing in a barbell bench press, so `lower_chest` and `upper_chest` are primary. The labels come from `/muscle-areas`.
+             * @example [
+             *       "lower_chest",
+             *       "upper_chest"
+             *     ]
+             */
+            primary: string[];
+            /**
+             * @description Keys of the muscles that assist the primary ones, in order. Can be empty: stretching and foam-rolling exercises have none. For example, the front delts and triceps help the chest in a barbell bench press, so `front_delts`, `triceps_lateral` and `triceps_long` are secondary. The labels come from `/muscle-areas`.
+             * @example [
+             *       "front_delts",
+             *       "triceps_lateral",
+             *       "triceps_long"
+             *     ]
+             */
+            secondary: string[];
+            /** @description Photos in display order. */
+            photos: components["schemas"]["ExercisePhotoResource"][];
+            /**
+             * @description Step-by-step instructions. Only returned by the detail endpoint.
+             * @example [
+             *       "Lie back on a flat bench.",
+             *       "Lower the bar to your chest."
+             *     ]
+             */
+            instructions?: string[] | null;
+            /**
+             * @description The free-exercise-db id. Only returned by the detail endpoint.
+             * @example Barbell_Bench_Press_-_Medium_Grip
+             */
+            source_id?: string | null;
         };
         /** ForgotPasswordRequest */
         ForgotPasswordRequest: {
@@ -414,6 +566,16 @@ export interface components {
              */
             body_view: components["schemas"]["BodyView"];
         };
+        /**
+         * MuscleRole
+         * @enum {string}
+         */
+        MuscleRole: "primary" | "secondary";
+        /**
+         * PhotoSource
+         * @enum {string}
+         */
+        PhotoSource: "free_exercise_db" | "wger";
         /** ProfileResource */
         ProfileResource: {
             /** @example 1990-04-15 */
@@ -1134,6 +1296,140 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "exercise.index": {
+        parameters: {
+            query?: {
+                /**
+                 * @description Only exercises whose equipment is in one of these groups. Keys come from `/equipment-groups`.
+                 * @example [
+                 *       "kettlebell",
+                 *       "bands"
+                 *     ]
+                 */
+                "equipment_group[]"?: string[];
+                /**
+                 * @description Only exercises with one of these pieces of equipment. Keys come from `/equipment-groups`.
+                 * @example [
+                 *       "barbell",
+                 *       "cable"
+                 *     ]
+                 */
+                "equipment[]"?: string[];
+                /**
+                 * @description Only these categories.
+                 * @example [
+                 *       "strength",
+                 *       "cardio"
+                 *     ]
+                 */
+                "category[]"?: components["schemas"]["ExerciseCategory"][];
+                /**
+                 * @description Only these levels.
+                 * @example [
+                 *       "beginner",
+                 *       "intermediate"
+                 *     ]
+                 */
+                "level[]"?: components["schemas"]["ExerciseLevel"][];
+                /**
+                 * @description Case-insensitive match anywhere in the name.
+                 * @example bench
+                 */
+                search?: string;
+                /**
+                 * @description Only exercises tagged with this muscle, primary or secondary. Primaries come first, ranked by the muscle's position and then by fewest primaries; secondaries follow, sorted by name. Keys come from `/muscle-areas`.
+                 * @example quads
+                 */
+                muscle?: string;
+                /**
+                 * @description Only exercises where `muscle` has this role. Needs `muscle`.
+                 * @example primary
+                 */
+                role?: components["schemas"]["MuscleRole"];
+                /**
+                 * @description Page number. Defaults to 1.
+                 * @example 1
+                 */
+                page?: number;
+                /**
+                 * @description Page size. Defaults to 50.
+                 * @example 50
+                 */
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `ExerciseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ExerciseResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "exercise.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The exercise key */
+                exercise: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ExerciseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ExerciseResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
 }

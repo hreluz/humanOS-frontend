@@ -62,18 +62,29 @@ export interface MuscleAreaDef {
 export interface ExercisePhoto {
   src: string
   caption: string
+  source: 'free_exercise_db' | 'wger'
+  license: string
+  /** Set only for wger photos. Must be shown when set. */
+  author: string | null
+  creditUrl: string | null
 }
 
 /** An exercise from the library, tagged with the exact muscles it trains. */
 export interface ExerciseDef {
-  id: string
+  key: string
   name: string
   /** Muscles the exercise mainly trains. */
   primary: MuscleKey[]
   /** Muscles that assist. */
   secondary: MuscleKey[]
   equipmentGroup: EquipmentGroupKey
-  cue: string
-  /** The exercise's start and end positions first, then close variants (similar machines). */
+  cue: string | null
+  /** In display order, as the API sends them. */
   photos: ExercisePhoto[]
+}
+
+/** One page of exercises, and whether another page follows it. */
+export interface ExercisePage {
+  items: ExerciseDef[]
+  hasMore: boolean
 }

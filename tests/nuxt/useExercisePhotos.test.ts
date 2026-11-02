@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { ExerciseDef } from '~/types/training'
 
-const photo = (n: number) => ({ src: `https://example.com/${n}.jpg`, caption: `Photo ${n}` })
+const photo = (n: number) => ({ src: `https://example.com/${n}.jpg`, caption: `Photo ${n}`, source: 'free_exercise_db' as const, license: 'Unlicense', author: null, creditUrl: null })
 const pulldown: ExerciseDef = {
-  id: 'lat-pulldown', name: 'Lat Pulldown', primary: ['lats'], secondary: [], equipmentGroup: 'gym', cue: 'Elbows down.',
+  key: 'lat_pulldown', name: 'Lat Pulldown', primary: ['lats'], secondary: [], equipmentGroup: 'gym', cue: 'Elbows down.',
   photos: [photo(0), photo(1), photo(2)],
 }
 

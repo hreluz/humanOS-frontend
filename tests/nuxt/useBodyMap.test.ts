@@ -1,18 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MockInstance } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { BACK_MUSCLES, FRONT_MUSCLES } from 'body-muscles'
-import type { MuscleKey } from '~/types/training'
+import type { ExerciseDef, ExercisePage, MuscleKey } from '~/types/training'
 import { api } from '~/services/api'
 import * as trainingService from '~/services/trainingService'
-import { MOCK_LATENCY_MS } from '~/services/mocks/delay'
-import { EXERCISES } from '~/services/mocks/exercises'
 
 vi.mock('~/services/api')
-
-const settle = async () => {
-  await new Promise(r => setTimeout(r, MOCK_LATENCY_MS + 20))
-  await flushPromises()
-}
 
 /** The backend's muscle catalog (`MuscleSeeder` in humanOS-backend), as `GET /v1/training/muscle-areas` returns it. */
 const BACKEND_AREAS: [string, string, [string, string, 'front' | 'back'][]][] = [
@@ -43,43 +37,33 @@ const muscleAreasResponse = {
   })),
 }
 
-/** The six equipment groups, as `GET /v1/training/equipment-groups` returns them. */
-const GROUP_KEYS = ['gym', 'dumbbell', 'bodyweight', 'kettlebell', 'bands', 'accessories']
-const equipmentGroupsResponse = {
-  data: [
-    { key: 'gym', label: 'Gym', equipment: [{ key: 'barbell', label: 'Barbell' }, { key: 'machine', label: 'Machine' }, { key: 'cable', label: 'Cable' }, { key: 'ez_bar', label: 'EZ curl bar' }] },
-    { key: 'dumbbell', label: 'Dumbbell', equipment: [{ key: 'dumbbell', label: 'Dumbbell' }] },
-    { key: 'bodyweight', label: 'Bodyweight', equipment: [{ key: 'body_only', label: 'Body only' }] },
-    { key: 'kettlebell', label: 'Kettlebell', equipment: [{ key: 'kettlebell', label: 'Kettlebell' }] },
-    { key: 'bands', label: 'Bands', equipment: [{ key: 'bands', label: 'Resistance bands' }] },
-    { key: 'accessories', label: 'Accessories', equipment: [{ key: 'medicine_ball', label: 'Medicine ball' }, { key: 'exercise_ball', label: 'Exercise ball' }, { key: 'foam_roll', label: 'Foam roll' }, { key: 'other', label: 'Other' }] },
-  ],
+/** Answers the muscle catalog; the mocked `getExercises` below answers the exercises. */
+function mockCatalog() {
+  vi.mocked(api).mockResolvedValue(muscleAreasResponse)
 }
 
-/** Routes the mocked `api` by URL: both catalogs come from it. */
-function mockCatalogs(equipmentGroups: () => Promise<unknown> = () => Promise.resolve(equipmentGroupsResponse)) {
-  vi.mocked(api).mockImplementation((url: string) => url === '/v1/training/equipment-groups' ? equipmentGroups() : Promise.resolve(muscleAreasResponse))
-}
-
-beforeEach(() => {
-  vi.restoreAllMocks()
-  mockCatalogs()
-})
-
-/** Forgets the loaded equipment catalog, so the next `useBodyMap` requests it again. */
-function clearEquipmentCatalog() {
-  clearNuxtState('equipment-groups')
-  clearNuxtData('load:equipment-groups')
-}
+const exercise = (key: string): ExerciseDef => ({ key, name: key, primary: ['lats'], secondary: [], equipmentGroup: 'gym', cue: null, photos: [] })
+const page = (keys: string[], hasMore = false): ExercisePage => ({ items: keys.map(exercise), hasMore })
+const keysOf = (list: ExerciseDef[]) => list.map(e => e.key)
 
 /** A promise the test settles by hand, to look at the state while a request is in flight. */
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
     resolve = res
+    reject = rej
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
+
+let getExercises: MockInstance<typeof trainingService.getExercises>
+
+beforeEach(() => {
+  vi.restoreAllMocks()
+  mockCatalog()
+  getExercises = vi.spyOn(trainingService, 'getExercises').mockResolvedValue(page(['a']))
+})
 
 /** A body map whose muscle catalog has loaded, so `select` can use each muscle's side. */
 async function loadedBodyMap() {
@@ -115,126 +99,196 @@ describe('muscle map', () => {
   })
 })
 
-describe('exercise library', () => {
-  it('has an exercise that targets every muscle except the neck', () => {
-    // No mocked exercise trains the neck until the exercise endpoints land (SPEC 07).
-    const untargeted = MUSCLE_KEYS.filter(m => !EXERCISES.some(e => e.primary.includes(m)))
-    expect(untargeted).toEqual(['neck'])
-  })
-
-  it('tags every exercise with at least one primary muscle and never lists a muscle twice', () => {
-    for (const e of EXERCISES) {
-      expect(e.primary.length, e.name).toBeGreaterThan(0)
-      expect(new Set([...e.primary, ...e.secondary]).size, e.name).toBe(e.primary.length + e.secondary.length)
-    }
-    expect(new Set(EXERCISES.map(e => e.id)).size).toBe(EXERCISES.length)
-  })
-
-  it('tags the exercises that bias one part of a muscle', () => {
-    const byName = (name: string) => EXERCISES.find(e => e.name === name)!
-    expect(byName('Incline Dumbbell Press').primary).toEqual(['upper_chest'])
-    expect(byName('Chest Dip').primary).toEqual(['lower_chest'])
-    expect(byName('Seated Calf Raise').primary).toEqual(['soleus'])
-    expect(byName('Standing Calf Raise Machine').primary).toEqual(['gastrocnemius'])
-    expect(byName('Overhead Cable Extension').primary).toEqual(['triceps_long'])
-  })
-})
-
 describe('useBodyMap', () => {
-  it('starts on the front with all six groups on, in API order, and no exercises', async () => {
+  it('starts on the front with no group picked, no exercises and no request', async () => {
     const map = useBodyMap()
-    await vi.waitUntil(() => map.equipmentReady.value)
+    await flushPromises()
     expect(map.view.value).toBe('front')
-    expect(map.equipment.value).toEqual(GROUP_KEYS)
+    expect(map.equipmentGroup.value).toBeNull()
     expect(map.exercises.value).toEqual([])
+    expect(getExercises).not.toHaveBeenCalled()
   })
 
-  it('turns on every group that arrives after it was created', async () => {
-    clearEquipmentCatalog()
-    const request = deferred<unknown>()
-    mockCatalogs(() => request.promise)
-
-    const map = useBodyMap()
-    expect(map.equipmentReady.value).toBe(false)
-    expect(map.equipment.value).toEqual([])
-
-    request.resolve(equipmentGroupsResponse)
-    await vi.waitUntil(() => map.equipmentReady.value)
-    expect(map.equipment.value).toEqual(GROUP_KEYS)
-  })
-
-  it('doesn\'t look up exercises before the groups load', async () => {
-    clearEquipmentCatalog()
-    const request = deferred<unknown>()
-    mockCatalogs(() => request.promise)
-    const getExercises = vi.spyOn(trainingService, 'getExercises')
-
+  it('sends no request for a muscle alone', async () => {
     const map = useBodyMap()
     map.select('lats')
-    await settle()
+    await flushPromises()
     expect(getExercises).not.toHaveBeenCalled()
+    expect(map.loading.value).toBe(false)
+  })
+
+  it('sends no request for a group alone', async () => {
+    const map = useBodyMap()
+    map.pickEquipment('gym')
+    await flushPromises()
+    expect(getExercises).not.toHaveBeenCalled()
+    expect(map.loading.value).toBe(false)
+  })
+
+  it('requests a muscle and a group as a pair', async () => {
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await flushPromises()
+    expect(getExercises).toHaveBeenCalledTimes(1)
+    expect(getExercises).toHaveBeenCalledWith('lats', 'gym')
+    expect(keysOf(map.exercises.value)).toEqual(['a'])
+  })
+
+  it('replaces the group when another is picked', async () => {
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await flushPromises()
+    map.pickEquipment('dumbbell')
+    await flushPromises()
+    expect(map.equipmentGroup.value).toBe('dumbbell')
+    expect(getExercises).toHaveBeenLastCalledWith('lats', 'dumbbell')
+  })
+
+  it('keeps the group when the muscle changes', async () => {
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await flushPromises()
+    map.select('quads')
+    await flushPromises()
+    expect(map.equipmentGroup.value).toBe('gym')
+    expect(getExercises).toHaveBeenLastCalledWith('quads', 'gym')
+  })
+
+  it('sends no request when the current group is picked again', async () => {
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await flushPromises()
+    map.pickEquipment('gym')
+    await flushPromises()
+    expect(getExercises).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears the old list as soon as the muscle changes', async () => {
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await flushPromises()
+    const next = deferred<ExercisePage>()
+    getExercises.mockReturnValue(next.promise)
+    map.select('quads')
+    await nextTick()
+    expect(map.exercises.value).toEqual([])
+    expect(map.loading.value).toBe(true)
+    next.resolve(page(['b']))
+    await flushPromises()
+    expect(keysOf(map.exercises.value)).toEqual(['b'])
+    expect(map.loading.value).toBe(false)
+  })
+
+  it('never shows a response for an earlier muscle', async () => {
+    const first = deferred<ExercisePage>()
+    getExercises.mockReturnValueOnce(first.promise)
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await nextTick()
+    map.select('quads')
+    await flushPromises()
+    first.resolve(page(['stale']))
+    await flushPromises()
+    expect(keysOf(map.exercises.value)).toEqual(['a'])
+  })
+
+  it('sets failed when the first page is rejected, and retry fills the list', async () => {
+    getExercises.mockRejectedValueOnce({ statusCode: 500 })
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await flushPromises()
+    expect(map.failed.value).toBe(true)
     expect(map.exercises.value).toEqual([])
     expect(map.loading.value).toBe(false)
 
-    request.resolve(equipmentGroupsResponse)
-    await vi.waitUntil(() => map.equipmentReady.value)
-    await settle()
-    expect(getExercises).toHaveBeenCalledWith('lats', GROUP_KEYS)
-    expect(map.exercises.value.length).toBeGreaterThan(0)
+    await map.retry()
+    expect(map.failed.value).toBe(false)
+    expect(keysOf(map.exercises.value)).toEqual(['a'])
   })
 
-  it('lists exercises that target the muscle first, then the ones it assists in', async () => {
-    const map = useBodyMap()
-    map.select('upper_chest')
-    await settle()
-    const list = map.exercises.value
-    expect(list.length).toBeGreaterThan(0)
-    expect(list.every(e => e.primary.includes('upper_chest') || e.secondary.includes('upper_chest'))).toBe(true)
-    const firstAssist = list.findIndex(e => !e.primary.includes('upper_chest'))
-    expect(firstAssist).toBeGreaterThan(0)
-    expect(list.slice(firstAssist).every(e => !e.primary.includes('upper_chest'))).toBe(true)
-  })
-
-  it('puts the most direct exercises first', async () => {
+  it('ignores a failure from an earlier muscle', async () => {
+    const first = deferred<ExercisePage>()
+    getExercises.mockReturnValueOnce(first.promise)
     const map = useBodyMap()
     map.select('lats')
-    await settle()
-    const names = map.exercises.value.map(e => e.name)
-    expect(names.indexOf('Lat Pulldown')).toBeLessThan(names.indexOf('Dumbbell Pullover'))
-    expect(map.exercises.value[0]!.primary).toEqual(['lats'])
-  })
-
-  it('filters by equipment and keeps API order when a group is turned back on', async () => {
-    const map = useBodyMap()
-    map.select('lower_chest')
-    await settle()
-    map.toggleEquipment('gym')
-    await settle()
-    expect(map.equipment.value).toEqual(['dumbbell', 'bodyweight', 'kettlebell', 'bands', 'accessories'])
-    expect(map.exercises.value.length).toBeGreaterThan(0)
-    expect(map.exercises.value.some(e => e.equipmentGroup === 'gym')).toBe(false)
-    map.toggleEquipment('gym')
-    expect(map.equipment.value).toEqual(GROUP_KEYS)
-  })
-
-  it('finds no exercises with only kettlebell on', async () => {
-    const map = useBodyMap()
-    map.select('lower_chest')
-    await settle()
-    for (const key of GROUP_KEYS.filter(k => k !== 'kettlebell')) map.toggleEquipment(key)
-    await settle()
-    expect(map.equipment.value).toEqual(['kettlebell'])
-    expect(map.exercises.value).toEqual([])
-  })
-
-  it('shows nothing when every equipment type is off', async () => {
-    const map = useBodyMap()
+    map.pickEquipment('gym')
+    await nextTick()
     map.select('quads')
-    await settle()
-    for (const key of GROUP_KEYS) map.toggleEquipment(key)
-    await settle()
-    expect(map.equipment.value).toEqual([])
-    expect(map.exercises.value).toEqual([])
+    await flushPromises()
+    first.reject({ statusCode: 500 })
+    await flushPromises()
+    expect(map.failed.value).toBe(false)
+    expect(keysOf(map.exercises.value)).toEqual(['a'])
+  })
+
+  /** A body map showing page 1 of a longer list. */
+  async function mapWithMore() {
+    getExercises.mockResolvedValueOnce(page(['a', 'b'], true))
+    const map = useBodyMap()
+    map.select('lats')
+    map.pickEquipment('gym')
+    await flushPromises()
+    return map
+  }
+
+  it('appends the next page in order, until the last one', async () => {
+    const map = await mapWithMore()
+    expect(map.hasMore.value).toBe(true)
+    getExercises.mockResolvedValueOnce(page(['c'], false))
+    await map.loadMore()
+    expect(getExercises).toHaveBeenLastCalledWith('lats', 'gym', 2)
+    expect(keysOf(map.exercises.value)).toEqual(['a', 'b', 'c'])
+    expect(map.hasMore.value).toBe(false)
+
+    getExercises.mockClear()
+    await map.loadMore()
+    expect(getExercises).not.toHaveBeenCalled()
+  })
+
+  it('keeps the list when a page is rejected, and asks for the same page again', async () => {
+    const map = await mapWithMore()
+    getExercises.mockRejectedValueOnce({ statusCode: 500 })
+    await map.loadMore()
+    expect(map.loadMoreFailed.value).toBe(true)
+    expect(map.hasMore.value).toBe(true)
+    expect(keysOf(map.exercises.value)).toEqual(['a', 'b'])
+
+    getExercises.mockResolvedValueOnce(page(['c']))
+    await map.loadMore()
+    expect(getExercises).toHaveBeenLastCalledWith('lats', 'gym', 2)
+    expect(map.loadMoreFailed.value).toBe(false)
+    expect(keysOf(map.exercises.value)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('ignores a page that returns after the muscle changed', async () => {
+    const map = await mapWithMore()
+    const late = deferred<ExercisePage>()
+    getExercises.mockReturnValueOnce(late.promise)
+    const loading = map.loadMore()
+    map.select('quads')
+    await flushPromises()
+    late.resolve(page(['stale']))
+    await loading
+    expect(keysOf(map.exercises.value)).toEqual(['a'])
+  })
+
+  it('sends one request when a second loadMore comes while one is in flight', async () => {
+    const map = await mapWithMore()
+    const next = deferred<ExercisePage>()
+    getExercises.mockClear()
+    getExercises.mockReturnValueOnce(next.promise)
+    const loading = map.loadMore()
+    await map.loadMore()
+    expect(getExercises).toHaveBeenCalledTimes(1)
+    next.resolve(page(['c']))
+    await loading
   })
 
   it('turns the figure around for a muscle only drawn on the other side', async () => {
@@ -263,38 +317,15 @@ describe('useBodyMap', () => {
   })
 })
 
-describe('exercise photos', () => {
-  it('gives gym exercises photos of similar machines after their own start and end shots', async () => {
-    const map = useBodyMap()
-    map.select('lats')
-    await settle()
-    const pulldown = map.exercises.value.find(e => e.name === 'Lat Pulldown')!
-    expect(pulldown.photos.length).toBeGreaterThan(2)
-    expect(pulldown.photos.slice(0, 2).map(p => p.caption)).toEqual(['Start', 'End'])
-    expect(pulldown.photos[2]!.caption).toBe('Close-Grip Front Lat Pulldown · start')
-    for (const p of pulldown.photos) expect(p.src).toMatch(/^https:\/\/raw\.githubusercontent\.com\/yuhonas\/free-exercise-db\/main\/exercises\/[\w-]+\/[01]\.jpg$/)
-  })
-
-  it('leaves photos empty for an exercise without a match', async () => {
-    const map = useBodyMap()
-    map.select('front_delts')
-    await settle()
-    expect(map.exercises.value.find(e => e.name === 'Wall Handstand Hold')!.photos).toEqual([])
-  })
-})
-
 describe('useTraining.addExercise', () => {
   it('appends a library exercise to today\'s workout', async () => {
-    // Wipes today's workout, and the catalogs with it, so their loads run again too.
+    // Wipes today's workout, so its load runs again too.
     clearNuxtState()
     clearNuxtData()
     const training = useTraining()
-    const map = useBodyMap()
-    map.select('lats')
-    await settle()
-    const pullUp = map.exercises.value.find(e => e.name === 'Pull-up')!
+    await vi.waitUntil(() => training.workout.value)
     expect(training.hasExercise('Pull-up')).toBe(false)
-    await training.addExercise(pullUp, 'Bodyweight')
+    await training.addExercise({ ...exercise('pull_up'), name: 'Pull-up' }, 'Bodyweight')
     expect(training.hasExercise('Pull-up')).toBe(true)
     expect(training.workout.value!.exercises.at(-1)).toMatchObject({ name: 'Pull-up', equip: 'Bodyweight' })
   })

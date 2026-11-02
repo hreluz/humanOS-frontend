@@ -3,7 +3,12 @@ import type { BodyView, ExerciseDef, MuscleKey } from '~/types/training'
 
 definePageMeta({ tab: 'body' })
 
-const { view, selected, equipment, exercises, loading, select, toggleEquipment } = useBodyMap()
+const {
+  view, selected, select,
+  equipmentGroup, pickEquipment,
+  exercises, loading, failed, retry: retryExerciseList,
+  hasMore, loadingMore, loadMoreFailed, loadMore,
+} = useBodyMap()
 const { areas, labels, label, pending: musclesPending, failed: musclesFailed, retry } = useMuscleCatalog()
 const {
   groups: equipmentGroups,
@@ -69,9 +74,23 @@ async function retryEquipment() {
   }
 }
 
+const { tabindex: equipmentTabindex, onKeydown: onEquipmentKeydown } = useRadioGroup(() => equipmentGroups.value.map(g => g.key), equipmentGroup)
+
+// Same for the exercise list.
+const retryingExercises = ref(false)
+async function retryExercises() {
+  retryingExercises.value = true
+  try {
+    await retryExerciseList()
+  }
+  finally {
+    retryingExercises.value = false
+  }
+}
+
 const adding = ref<string | null>(null)
 async function add(def: ExerciseDef) {
-  adding.value = def.id
+  adding.value = def.key
   try {
     await addExercise(def, equipmentLabel(def.equipmentGroup))
   }
@@ -159,14 +178,16 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
           </button>
         </div>
         <p v-else-if="equipmentPending" class="text-[13.5px]" :class="inkFaintCls">Loading equipment…</p>
-        <div v-else class="flex flex-wrap gap-2" role="group" aria-label="Equipment">
+        <div v-else class="flex flex-wrap gap-2" role="radiogroup" aria-label="Equipment" @keydown="onEquipmentKeydown">
           <button
             v-for="group in equipmentGroups"
             :key="group.key"
             type="button"
-            :class="[chipCls, focusRingCls, equipment.includes(group.key) ? chipOnCls : chipOffCls]"
-            :aria-pressed="equipment.includes(group.key)"
-            @click="toggleEquipment(group.key)"
+            role="radio"
+            :class="[chipCls, focusRingCls, equipmentGroup === group.key ? chipOnCls : chipOffCls]"
+            :aria-checked="equipmentGroup === group.key"
+            :tabindex="equipmentTabindex(group.key)"
+            @click="pickEquipment(group.key)"
           >
             {{ group.label }}
           </button>
@@ -181,19 +202,31 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
       <div v-else-if="equipmentPending" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkFaintCls]">
         Loading exercises…
       </div>
-      <div v-else-if="!equipment.length" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
-        Pick at least one type of equipment.
+      <div v-else-if="!equipmentGroup" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
+        Pick a type of equipment.
       </div>
-      <div v-else-if="loading && !exercises.length" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkFaintCls]">
+      <div v-else-if="failed || retryingExercises" class="rounded-2xl px-5 py-6 shadow-xs flex flex-wrap items-center gap-x-3 gap-y-2" :class="cardCls" role="alert">
+        <span class="text-[14px]" :class="inkSoftCls">Couldn't load exercises.</span>
+        <button
+          type="button"
+          class="min-h-11 sm:min-h-8 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black disabled:opacity-50"
+          :class="focusRingCls"
+          :disabled="retryingExercises"
+          @click="retryExercises"
+        >
+          {{ retryingExercises ? 'Retrying…' : 'Retry' }}
+        </button>
+      </div>
+      <div v-else-if="loading" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkFaintCls]">
         Loading exercises…
       </div>
       <div v-else-if="!exercises.length" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
         No exercises for this filter.
       </div>
-      <section v-for="section in sections" v-else :key="section.key" class="flex flex-col gap-2.5" :aria-busy="loading">
+      <section v-for="section in sections" v-else :key="section.key" class="flex flex-col gap-2.5">
         <h3 class="text-[13px] font-bold tracking-wide uppercase mt-1" :class="inkFaintCls">{{ section.title }}</h3>
         <ul class="flex flex-col gap-3" :aria-label="section.title">
-          <li v-for="ex in section.items" :key="ex.id" class="rounded-2xl px-4 sm:px-5 py-4 shadow-xs flex gap-3.5 sm:gap-4 items-center" :class="cardCls">
+          <li v-for="ex in section.items" :key="ex.key" class="rounded-2xl px-4 sm:px-5 py-4 shadow-xs flex gap-3.5 sm:gap-4 items-center" :class="cardCls">
             <button
               v-if="ex.photos.length"
               type="button"
@@ -210,7 +243,7 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
                 <h4 class="text-[15.5px] font-bold" :class="inkCls">{{ ex.name }}</h4>
                 <span class="text-[12.5px]" :class="inkFaintCls">{{ equipmentLabel(ex.equipmentGroup) }}</span>
               </div>
-              <p class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ ex.cue }}</p>
+              <p v-if="ex.cue" class="text-[13.5px] mt-0.5" :class="inkSoftCls">{{ ex.cue }}</p>
               <p class="text-[12.5px] mt-1.5" :class="inkFaintCls">
                 Works:
                 <template v-for="(w, i) in worksList(ex)" :key="w.muscle">
@@ -235,7 +268,7 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
               type="button"
               class="shrink-0 min-h-11 sm:min-h-9 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black disabled:opacity-50"
               :class="focusRingCls"
-              :disabled="adding === ex.id"
+              :disabled="adding === ex.key"
               :aria-label="`Add ${ex.name} to today's workout`"
               @click="add(ex)"
             >
@@ -244,6 +277,27 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
           </li>
         </ul>
       </section>
+      <div v-if="hasMore && loadMoreFailed" class="flex flex-wrap items-center gap-x-3 gap-y-2" role="alert">
+        <span class="text-[13.5px]" :class="inkSoftCls">Couldn't load more exercises.</span>
+        <button
+          type="button"
+          class="min-h-11 sm:min-h-8 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black"
+          :class="focusRingCls"
+          @click="loadMore"
+        >
+          Retry
+        </button>
+      </div>
+      <button
+        v-else-if="hasMore"
+        type="button"
+        class="min-h-11 sm:min-h-9 px-3.5 rounded-[10px] text-[13px] font-semibold self-start border disabled:opacity-50"
+        :class="[dividerCls, inkCls, focusRingCls]"
+        :disabled="loadingMore"
+        @click="loadMore"
+      >
+        {{ loadingMore ? 'Loading…' : 'Load more' }}
+      </button>
       <NuxtLink v-if="selected" to="/train" class="text-[13.5px] font-semibold self-start" :class="linkBlueCls">See today's workout →</NuxtLink>
     </div>
   </div>

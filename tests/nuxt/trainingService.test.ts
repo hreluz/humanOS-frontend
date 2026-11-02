@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '~/services/api'
 import type { ExerciseDef } from '~/types/training'
-import { addExerciseToWorkout, getEquipmentGroups, getMuscleAreas } from '~/services/trainingService'
+import { addExerciseToWorkout, getEquipmentGroups, getExercises, getMuscleAreas } from '~/services/trainingService'
 
 vi.mock('~/services/api')
 
@@ -79,9 +79,84 @@ describe('getEquipmentGroups', () => {
   })
 })
 
+describe('getExercises', () => {
+  const resource = (over: Record<string, unknown> = {}) => ({
+    key: 'barbell_bench_press',
+    name: 'Barbell Bench Press',
+    category: 'strength',
+    level: 'beginner',
+    mechanic: 'compound',
+    force: 'push',
+    cue: 'Bar to mid-chest.',
+    equipment: 'barbell',
+    equipment_group: 'gym',
+    primary: ['lower_chest'],
+    secondary: ['front_delts'],
+    photos: [{ url: 'https://example.com/0.jpg', caption: 'Start', source: 'wger', license: 'CC-BY-SA', author: 'Ana', credit_url: 'https://example.com/ana' }],
+    ...over,
+  })
+  const page = (data: unknown[], current_page = 1, last_page = 1) => ({ data, meta: { current_page, last_page } })
+
+  it('asks for one muscle, one group and one page', async () => {
+    vi.mocked(api).mockResolvedValue(page([]))
+    await getExercises('lats', 'kettlebell', 3)
+    expect(api).toHaveBeenCalledWith('/v1/training/exercises', { query: { 'muscle': 'lats', 'equipment_group[]': ['kettlebell'], 'page': 3, 'per_page': 50 } })
+  })
+
+  it('starts on page 1', async () => {
+    vi.mocked(api).mockResolvedValue(page([]))
+    await getExercises('lats', 'gym')
+    expect(vi.mocked(api).mock.calls[0]![1]!.query!.page).toBe(1)
+  })
+
+  it('maps the response to app types', async () => {
+    vi.mocked(api).mockResolvedValue(page([resource()]))
+    const { items } = await getExercises('lower_chest', 'gym')
+    expect(items).toEqual([{
+      key: 'barbell_bench_press',
+      name: 'Barbell Bench Press',
+      primary: ['lower_chest'],
+      secondary: ['front_delts'],
+      equipmentGroup: 'gym',
+      cue: 'Bar to mid-chest.',
+      photos: [{ src: 'https://example.com/0.jpg', caption: 'Start', source: 'wger', license: 'CC-BY-SA', author: 'Ana', creditUrl: 'https://example.com/ana' }],
+    }])
+  })
+
+  it('keeps the API\'s order', async () => {
+    vi.mocked(api).mockResolvedValue(page([resource({ key: 'z', primary: ['lats'] }), resource({ key: 'a', primary: ['lats'] })]))
+    expect((await getExercises('lats', 'gym')).items.map(e => e.key)).toEqual(['z', 'a'])
+  })
+
+  it('keeps a null cue and maps empty photos to an empty list', async () => {
+    vi.mocked(api).mockResolvedValue(page([resource({ cue: null, photos: [] })]))
+    const [exercise] = (await getExercises('lower_chest', 'gym')).items
+    expect(exercise!.cue).toBeNull()
+    expect(exercise!.photos).toEqual([])
+  })
+
+  it('drops muscle keys the figure can\'t draw', async () => {
+    vi.mocked(api).mockResolvedValue(page([resource({ primary: ['grip', 'lats'], secondary: ['rotator_cuff', 'biceps'] })]))
+    const [exercise] = (await getExercises('lats', 'gym')).items
+    expect(exercise!.primary).toEqual(['lats'])
+    expect(exercise!.secondary).toEqual(['biceps'])
+  })
+
+  it('says if another page follows', async () => {
+    vi.mocked(api).mockResolvedValueOnce(page([], 1, 2)).mockResolvedValueOnce(page([], 2, 2))
+    expect((await getExercises('lats', 'gym', 1)).hasMore).toBe(true)
+    expect((await getExercises('lats', 'gym', 2)).hasMore).toBe(false)
+  })
+
+  it('passes API errors on', async () => {
+    vi.mocked(api).mockRejectedValue({ statusCode: 500 })
+    await expect(getExercises('lats', 'gym')).rejects.toEqual({ statusCode: 500 })
+  })
+})
+
 describe('addExerciseToWorkout', () => {
   it('appends an entry with the label it is given', async () => {
-    const def: ExerciseDef = { id: 'lat-pulldown', name: 'Lat Pulldown', primary: ['lats'], secondary: [], equipmentGroup: 'gym', cue: 'Elbows down.', photos: [] }
+    const def: ExerciseDef = { key: 'lat_pulldown', name: 'Lat Pulldown', primary: ['lats'], secondary: [], equipmentGroup: 'gym', cue: 'Elbows down.', photos: [] }
 
     const workout = await addExerciseToWorkout(def, 'Gym')
 
