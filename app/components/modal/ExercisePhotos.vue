@@ -2,6 +2,12 @@
 const { exercise, photos, index, current, goTo, next, prev } = useExercisePhotos()
 const { label: equipmentLabel } = useEquipmentCatalog()
 
+const subtitle = computed(() => {
+  if (!exercise.value) return ''
+  const group = equipmentLabel(exercise.value.equipmentGroup)
+  return exercise.value.cue ? `${group} · ${exercise.value.cue}` : group
+})
+
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowRight') next()
   else if (e.key === 'ArrowLeft') prev()
@@ -39,7 +45,7 @@ const arrowCls = [
     <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
       <div class="min-w-0">
         <h2 class="text-[17px] font-bold" :class="inkCls">{{ exercise.name }}</h2>
-        <p class="text-[13px]" :class="inkSoftCls">{{ equipmentLabel(exercise.equipmentGroup) }} · {{ exercise.cue }}</p>
+        <p class="text-[13px]" :class="inkSoftCls">{{ subtitle }}</p>
       </div>
       <ModalCloseButton />
     </div>
@@ -91,7 +97,13 @@ const arrowCls = [
         </button>
       </div>
 
-      <p class="text-[11.5px]" :class="inkFaintCls">
+      <p v-if="current?.author" class="text-[11.5px]" :class="inkFaintCls">
+        Photo:
+        <a v-if="current.creditUrl" :href="current.creditUrl" target="_blank" rel="noopener" class="underline underline-offset-2">{{ current.author }}</a>
+        <template v-else>{{ current.author }}</template>
+        ({{ current.license }})
+      </p>
+      <p v-else-if="current?.source === 'free_exercise_db'" class="text-[11.5px]" :class="inkFaintCls">
         Photos: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener" class="underline underline-offset-2">free-exercise-db</a> (public domain)
       </p>
     </div>
