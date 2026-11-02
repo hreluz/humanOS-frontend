@@ -45,6 +45,9 @@ export interface EquipmentGroupDef {
 
 export type BodyView = 'front' | 'back'
 
+/** Which list the body map shows. Stretches are one API category, and exercises are all the others. */
+export type ExerciseKind = 'exercises' | 'stretches'
+
 /** A muscle from the catalog API. `view` is the side the figure turns to when the muscle is picked. */
 export interface MuscleDef {
   key: MuscleKey

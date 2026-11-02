@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '~/services/api'
 import type { ExerciseDef } from '~/types/training'
-import { addExerciseToWorkout, getEquipmentGroups, getExercises, getMuscleAreas } from '~/services/trainingService'
+import { addExerciseToWorkout, getEquipmentGroups, getExercises, getMuscleAreas, getStretches } from '~/services/trainingService'
 
 vi.mock('~/services/api')
 
@@ -100,7 +100,21 @@ describe('getExercises', () => {
   it('asks for one muscle, one group and one page', async () => {
     vi.mocked(api).mockResolvedValue(page([]))
     await getExercises('lats', 'kettlebell', 3)
-    expect(api).toHaveBeenCalledWith('/v1/training/exercises', { query: { 'muscle': 'lats', 'equipment_group[]': ['kettlebell'], 'page': 3, 'per_page': 50 } })
+    expect(api).toHaveBeenCalledWith('/v1/training/exercises', {
+      query: {
+        'muscle': 'lats',
+        'equipment_group[]': ['kettlebell'],
+        'category[]': ['strength', 'powerlifting', 'olympic_weightlifting', 'strongman', 'plyometrics', 'cardio'],
+        'page': 3,
+        'per_page': 50,
+      },
+    })
+  })
+
+  it('leaves stretches out', async () => {
+    vi.mocked(api).mockResolvedValue(page([]))
+    await getExercises('lats', 'gym')
+    expect(vi.mocked(api).mock.calls[0]![1]!.query!['category[]']).not.toContain('stretching')
   })
 
   it('starts on page 1', async () => {
@@ -151,6 +165,58 @@ describe('getExercises', () => {
   it('passes API errors on', async () => {
     vi.mocked(api).mockRejectedValue({ statusCode: 500 })
     await expect(getExercises('lats', 'gym')).rejects.toEqual({ statusCode: 500 })
+  })
+})
+
+describe('getStretches', () => {
+  const page = (data: unknown[], current_page = 1, last_page = 1) => ({ data, meta: { current_page, last_page } })
+
+  it('asks for one muscle\'s stretches, with no equipment group', async () => {
+    vi.mocked(api).mockResolvedValue(page([]))
+    await getStretches('lats', 2)
+    expect(api).toHaveBeenCalledWith('/v1/training/exercises', {
+      query: { 'muscle': 'lats', 'category[]': ['stretching'], 'page': 2, 'per_page': 50 },
+    })
+  })
+
+  it('starts on page 1', async () => {
+    vi.mocked(api).mockResolvedValue(page([]))
+    await getStretches('lats')
+    expect(vi.mocked(api).mock.calls[0]![1]!.query!.page).toBe(1)
+  })
+
+  it('maps the response like exercises', async () => {
+    vi.mocked(api).mockResolvedValue(page([{
+      key: 'childs_pose',
+      name: 'Child\'s Pose',
+      category: 'stretching',
+      cue: null,
+      equipment_group: 'bodyweight',
+      primary: ['lower_back', 'lats'],
+      secondary: [],
+      photos: [],
+    }]))
+    const { items } = await getStretches('lats')
+    expect(items).toEqual([{
+      key: 'childs_pose',
+      name: 'Child\'s Pose',
+      primary: ['lower_back', 'lats'],
+      secondary: [],
+      equipmentGroup: 'bodyweight',
+      cue: null,
+      photos: [],
+    }])
+  })
+
+  it('says if another page follows', async () => {
+    vi.mocked(api).mockResolvedValueOnce(page([], 1, 2)).mockResolvedValueOnce(page([], 2, 2))
+    expect((await getStretches('lats', 1)).hasMore).toBe(true)
+    expect((await getStretches('lats', 2)).hasMore).toBe(false)
+  })
+
+  it('passes API errors on', async () => {
+    vi.mocked(api).mockRejectedValue({ statusCode: 500 })
+    await expect(getStretches('lats')).rejects.toEqual({ statusCode: 500 })
   })
 })
 

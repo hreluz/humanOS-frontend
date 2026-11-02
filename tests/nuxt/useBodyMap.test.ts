@@ -58,11 +58,13 @@ function deferred<T>() {
 }
 
 let getExercises: MockInstance<typeof trainingService.getExercises>
+let getStretches: MockInstance<typeof trainingService.getStretches>
 
 beforeEach(() => {
   vi.restoreAllMocks()
   mockCatalog()
   getExercises = vi.spyOn(trainingService, 'getExercises').mockResolvedValue(page(['a']))
+  getStretches = vi.spyOn(trainingService, 'getStretches').mockResolvedValue(page(['s']))
 })
 
 /** A body map whose muscle catalog has loaded, so `select` can use each muscle's side. */
@@ -131,7 +133,7 @@ describe('useBodyMap', () => {
     map.pickEquipment('gym')
     await flushPromises()
     expect(getExercises).toHaveBeenCalledTimes(1)
-    expect(getExercises).toHaveBeenCalledWith('lats', 'gym')
+    expect(getExercises).toHaveBeenCalledWith('lats', 'gym', 1)
     expect(keysOf(map.exercises.value)).toEqual(['a'])
   })
 
@@ -143,7 +145,7 @@ describe('useBodyMap', () => {
     map.pickEquipment('dumbbell')
     await flushPromises()
     expect(map.equipmentGroup.value).toBe('dumbbell')
-    expect(getExercises).toHaveBeenLastCalledWith('lats', 'dumbbell')
+    expect(getExercises).toHaveBeenLastCalledWith('lats', 'dumbbell', 1)
   })
 
   it('keeps the group when the muscle changes', async () => {
@@ -154,7 +156,7 @@ describe('useBodyMap', () => {
     map.select('quads')
     await flushPromises()
     expect(map.equipmentGroup.value).toBe('gym')
-    expect(getExercises).toHaveBeenLastCalledWith('quads', 'gym')
+    expect(getExercises).toHaveBeenLastCalledWith('quads', 'gym', 1)
   })
 
   it('sends no request when the current group is picked again', async () => {
@@ -289,6 +291,119 @@ describe('useBodyMap', () => {
     expect(getExercises).toHaveBeenCalledTimes(1)
     next.resolve(page(['c']))
     await loading
+  })
+
+  describe('kind', () => {
+    it('starts on exercises and sends no request', async () => {
+      const map = useBodyMap()
+      await flushPromises()
+      expect(map.kind.value).toBe('exercises')
+      expect(getExercises).not.toHaveBeenCalled()
+      expect(getStretches).not.toHaveBeenCalled()
+    })
+
+    it('asks for stretches with a muscle and no group', async () => {
+      const map = useBodyMap()
+      map.select('lats')
+      map.kind.value = 'stretches'
+      await flushPromises()
+      expect(getStretches).toHaveBeenCalledWith('lats', 1)
+      expect(getExercises).not.toHaveBeenCalled()
+      expect(keysOf(map.exercises.value)).toEqual(['s'])
+    })
+
+    it('sends no request for stretches with no muscle', async () => {
+      const map = useBodyMap()
+      map.kind.value = 'stretches'
+      await flushPromises()
+      expect(getStretches).not.toHaveBeenCalled()
+      expect(map.loading.value).toBe(false)
+    })
+
+    it('clears the old list as soon as the kind changes', async () => {
+      const map = useBodyMap()
+      map.select('lats')
+      map.pickEquipment('gym')
+      await flushPromises()
+      const next = deferred<ExercisePage>()
+      getStretches.mockReturnValue(next.promise)
+      map.kind.value = 'stretches'
+      await nextTick()
+      expect(map.exercises.value).toEqual([])
+      expect(map.loading.value).toBe(true)
+      next.resolve(page(['s']))
+      await flushPromises()
+      expect(keysOf(map.exercises.value)).toEqual(['s'])
+    })
+
+    it('keeps the muscle and group, and asks for that pair when switching back', async () => {
+      const map = useBodyMap()
+      map.select('lats')
+      map.pickEquipment('gym')
+      await flushPromises()
+      map.kind.value = 'stretches'
+      await flushPromises()
+      getExercises.mockClear()
+      map.kind.value = 'exercises'
+      await flushPromises()
+      expect(map.selected.value).toBe('lats')
+      expect(map.equipmentGroup.value).toBe('gym')
+      expect(getExercises).toHaveBeenCalledWith('lats', 'gym', 1)
+      expect(keysOf(map.exercises.value)).toEqual(['a'])
+    })
+
+    it('sends no request when switching back with no group', async () => {
+      const map = useBodyMap()
+      map.select('lats')
+      map.kind.value = 'stretches'
+      await flushPromises()
+      map.kind.value = 'exercises'
+      await flushPromises()
+      expect(getExercises).not.toHaveBeenCalled()
+      expect(map.exercises.value).toEqual([])
+      expect(map.loading.value).toBe(false)
+    })
+
+    it('never shows a response for the earlier kind', async () => {
+      const first = deferred<ExercisePage>()
+      getExercises.mockReturnValueOnce(first.promise)
+      const map = useBodyMap()
+      map.select('lats')
+      map.pickEquipment('gym')
+      await nextTick()
+      map.kind.value = 'stretches'
+      await flushPromises()
+      first.resolve(page(['stale']))
+      await flushPromises()
+      expect(keysOf(map.exercises.value)).toEqual(['s'])
+    })
+
+    it('retries the current kind', async () => {
+      getStretches.mockRejectedValueOnce({ statusCode: 500 })
+      const map = useBodyMap()
+      map.select('lats')
+      map.kind.value = 'stretches'
+      await flushPromises()
+      expect(map.failed.value).toBe(true)
+      await map.retry()
+      expect(getStretches).toHaveBeenCalledTimes(2)
+      expect(getExercises).not.toHaveBeenCalled()
+      expect(map.failed.value).toBe(false)
+      expect(keysOf(map.exercises.value)).toEqual(['s'])
+    })
+
+    it('loads more of the current kind', async () => {
+      getStretches.mockResolvedValueOnce(page(['s'], true))
+      const map = useBodyMap()
+      map.select('lats')
+      map.kind.value = 'stretches'
+      await flushPromises()
+      getStretches.mockResolvedValueOnce(page(['t']))
+      await map.loadMore()
+      expect(getStretches).toHaveBeenLastCalledWith('lats', 2)
+      expect(getExercises).not.toHaveBeenCalled()
+      expect(keysOf(map.exercises.value)).toEqual(['s', 't'])
+    })
   })
 
   it('turns the figure around for a muscle only drawn on the other side', async () => {
