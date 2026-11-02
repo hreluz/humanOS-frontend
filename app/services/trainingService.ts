@@ -9,9 +9,21 @@ import { TODAY_WORKOUT } from './mocks/training'
 type MuscleAreaResource = components['schemas']['MuscleAreaResource']
 type EquipmentGroupResource = components['schemas']['EquipmentGroupResource']
 type ExerciseResource = components['schemas']['ExerciseResource']
+type ExerciseCategory = components['schemas']['ExerciseCategory']
 
 /** Exercises per `Load more`. */
 const EXERCISES_PER_PAGE = 50
+
+// A Record, so a new backend category fails typecheck after `pnpm gen:api` instead of silently leaving the list.
+const NON_STRETCHING_CATEGORIES: Record<Exclude<ExerciseCategory, 'stretching'>, true> = {
+  strength: true,
+  powerlifting: true,
+  olympic_weightlifting: true,
+  strongman: true,
+  plyometrics: true,
+  cardio: true,
+}
+const EXERCISE_CATEGORIES = Object.keys(NON_STRETCHING_CATEGORIES)
 
 /** The muscle catalog in display order. Muscles the figure can't draw are dropped, and so are areas left empty. */
 export function getMuscleAreas(): Promise<MuscleAreaDef[]> {
@@ -56,14 +68,23 @@ function toExercise(e: ExerciseResource): ExerciseDef {
   }
 }
 
-/** One page of the exercises that train `muscle` with `group`, in the API's order: the ones that target it first, then the ones it assists in. */
-export function getExercises(muscle: MuscleKey, group: EquipmentGroupKey, page = 1): Promise<ExercisePage> {
+function requestExercises(query: Record<string, string | number | string[]>): Promise<ExercisePage> {
   return api<{ data: ExerciseResource[], meta: { current_page: number, last_page: number } }>('/v1/training/exercises', {
-    query: { muscle, 'equipment_group[]': [group], page, 'per_page': EXERCISES_PER_PAGE },
+    query: { ...query, per_page: EXERCISES_PER_PAGE },
   }).then(({ data, meta }) => ({
     items: data.map(toExercise),
     hasMore: meta.current_page < meta.last_page,
   }))
+}
+
+/** One page of the non-stretching exercises that train `muscle` with `group`, in the API's order: the ones that target it first, then the ones it assists in. */
+export function getExercises(muscle: MuscleKey, group: EquipmentGroupKey, page = 1): Promise<ExercisePage> {
+  return requestExercises({ muscle, 'equipment_group[]': [group], 'category[]': EXERCISE_CATEGORIES, page })
+}
+
+/** One page of the stretches for `muscle`, with any equipment, in the API's order. */
+export function getStretches(muscle: MuscleKey, page = 1): Promise<ExercisePage> {
+  return requestExercises({ muscle, 'category[]': ['stretching'], page })
 }
 
 // Today's workout is still mocked.

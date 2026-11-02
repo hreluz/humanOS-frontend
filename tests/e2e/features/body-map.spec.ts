@@ -42,6 +42,9 @@ test.beforeEach(async ({ context, page, baseURL }) => {
 /** The equipment tabs: one group at a time. */
 const tool = (page: Page, name: string) => page.getByRole('radiogroup', { name: 'Equipment' }).getByRole('radio', { name, exact: true })
 
+/** The `Exercises` / `Stretches` control. */
+const kind = (page: Page, name: string) => page.getByRole('radiogroup', { name: 'Exercise type' }).getByRole('radio', { name, exact: true })
+
 /** Every exercise card for a muscle, across the `Targets …` and `Also works …` lists. */
 const cards = (page: Page, muscle: string) => page.getByRole('list', { name: new RegExp(`(Targets|Also works) ${muscle}$`) }).getByRole('listitem')
 
@@ -186,6 +189,108 @@ for (const theme of THEMES) {
       await expect(list).toHaveCount(100)
     })
 
+    test('exercises are picked at first, and the control works from the keyboard', async ({ page }, testInfo) => {
+      await expect(kind(page, 'Exercises')).toHaveAttribute('aria-checked', 'true')
+      await expect(kind(page, 'Stretches')).toHaveAttribute('aria-checked', 'false')
+      await expect(page.getByRole('radiogroup', { name: 'Equipment' })).toBeVisible()
+      await kind(page, 'Exercises').scrollIntoViewIfNeeded()
+      await shot(page, testInfo, 'body-kind-control', theme)
+
+      await kind(page, 'Exercises').focus()
+      await page.keyboard.press('ArrowRight')
+      await expect(kind(page, 'Stretches')).toHaveAttribute('aria-checked', 'true')
+      await expect(kind(page, 'Stretches')).toBeFocused()
+      await page.keyboard.press('Home')
+      await expect(kind(page, 'Exercises')).toHaveAttribute('aria-checked', 'true')
+      await page.keyboard.press('End')
+      await expect(kind(page, 'Stretches')).toHaveAttribute('aria-checked', 'true')
+    })
+
+    test('the exercises list leaves stretches out', async ({ page }) => {
+      await page.getByRole('radio', { name: 'Back' }).click()
+      await tapMuscle(page, 'lats')
+      const [request] = await Promise.all([page.waitForRequest(EXERCISES_URL), tool(page, 'Bodyweight').click()])
+      expect(new URL(request.url()).searchParams.getAll('category[]')).toEqual(['strength', 'powerlifting', 'olympic_weightlifting', 'strongman', 'plyometrics', 'cardio'])
+      await expect(cards(page, 'lats').first()).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Child\'s Pose', exact: true })).toHaveCount(0)
+    })
+
+    test('stretches hide the tabs and list with no tool picked', async ({ page }, testInfo) => {
+      await page.getByRole('radio', { name: 'Back' }).click()
+      await tapMuscle(page, 'lats')
+      await expect(page.getByText('Pick a type of equipment.')).toBeVisible()
+      const [request] = await Promise.all([page.waitForRequest(EXERCISES_URL), kind(page, 'Stretches').click()])
+      const query = new URL(request.url()).searchParams
+      expect(query.get('muscle')).toBe('lats')
+      expect(query.getAll('category[]')).toEqual(['stretching'])
+      expect(query.getAll('equipment_group[]')).toEqual([])
+      expect(query.get('page')).toBe('1')
+      expect(query.get('per_page')).toBe('50')
+      expect(await request.headerValue('authorization')).toMatch(/^Bearer /)
+
+      await expect(page.getByRole('radiogroup', { name: 'Equipment' })).toHaveCount(0)
+      await expect(page.getByRole('list', { name: 'Targets lats' }).getByText('Child\'s Pose', { exact: true })).toBeVisible()
+      await shot(page, testInfo, 'body-stretches', theme)
+    })
+
+    test('stretches with no muscle still ask for one', async ({ page }) => {
+      const requests: string[] = []
+      page.on('request', (r) => {
+        if (EXERCISES_URL.test(r.url())) requests.push(r.url())
+      })
+      await kind(page, 'Stretches').click()
+      await expect(page.getByText('Tap a muscle to see stretches')).toBeVisible()
+      expect(requests).toEqual([])
+    })
+
+    test('no stretches for a muscle', async ({ page }, testInfo) => {
+      await kind(page, 'Stretches').click()
+      await page.getByRole('group', { name: 'Chest' }).getByRole('button', { name: 'Serratus' }).click()
+      await expect(page.getByText('No stretches for this muscle.')).toBeVisible()
+      await shot(page, testInfo, 'body-no-stretches', theme)
+    })
+
+    test('switching back to exercises keeps the muscle and tool', async ({ page }) => {
+      await page.getByRole('radio', { name: 'Back' }).click()
+      await tapMuscle(page, 'lats')
+      await tool(page, 'Gym').click()
+      const targets = page.getByRole('list', { name: 'Targets lats' })
+      await expect(targets.getByText('Lat Pulldown', { exact: true })).toBeVisible()
+
+      await kind(page, 'Stretches').click()
+      await expect(targets.getByText('Child\'s Pose', { exact: true })).toBeVisible()
+      await expect(targets.getByText('Lat Pulldown', { exact: true })).toHaveCount(0)
+
+      await kind(page, 'Exercises').click()
+      await expect(tool(page, 'Gym')).toHaveAttribute('aria-checked', 'true')
+      await expect(targets.getByText('Lat Pulldown', { exact: true })).toBeVisible()
+      await expect(targets.getByText('Child\'s Pose', { exact: true })).toHaveCount(0)
+    })
+
+    test('failed stretches offer a retry', async ({ page }) => {
+      await page.getByRole('radio', { name: 'Back' }).click()
+      await tapMuscle(page, 'lats')
+      await page.route(EXERCISES_URL, route => route.fulfill({ status: 500, json: { message: 'Server Error' } }))
+      await kind(page, 'Stretches').click()
+      const alert = page.getByRole('alert').filter({ hasText: 'Couldn\'t load stretches.' })
+      await expect(alert).toBeVisible()
+
+      await page.unroute(EXERCISES_URL)
+      await alert.getByRole('button', { name: 'Retry' }).click()
+      await expect(page.getByRole('list', { name: 'Targets lats' }).getByText('Child\'s Pose', { exact: true })).toBeVisible()
+    })
+
+    test('a stretch can be added to today\'s workout', async ({ page }) => {
+      await page.getByRole('radio', { name: 'Back' }).click()
+      await tapMuscle(page, 'lats')
+      await kind(page, 'Stretches').click()
+      await page.getByRole('button', { name: 'Add Child\'s Pose to today\'s workout' }).click()
+      await expect(page.getByRole('list', { name: 'Targets lats' }).getByRole('listitem').filter({ hasText: 'Child\'s Pose' }).getByText('Added')).toBeVisible()
+      await page.getByRole('link', { name: 'See today\'s workout →' }).click()
+      await expect(page).toHaveURL(/\/train$/)
+      await expect(page.getByRole('heading', { name: 'Child\'s Pose', exact: true })).toBeVisible()
+    })
+
     test('muscle chip turns the figure around', async ({ page }) => {
       await page.getByRole('group', { name: 'Legs' }).getByRole('button', { name: 'Soleus' }).click()
       await expect(page.getByRole('radio', { name: 'Back' })).toHaveAttribute('aria-checked', 'true')
@@ -210,7 +315,7 @@ for (const theme of THEMES) {
       await tapFigureAt(page, ...NAPE_POINT)
       await expect(page.locator('svg [data-muscle="neck"]')).toHaveAttribute('aria-pressed', 'true')
       await expect(page.getByRole('heading', { name: 'Neck', exact: true })).toBeVisible()
-      await tool(page, 'Bodyweight').click()
+      await kind(page, 'Stretches').click()
       await expect(page.getByRole('list', { name: 'Targets neck' }).getByText('Side Neck Stretch', { exact: true })).toBeVisible()
       await shot(page, testInfo, 'body-neck', theme)
     })

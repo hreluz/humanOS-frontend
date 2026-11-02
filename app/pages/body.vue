@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { BodyView, ExerciseDef, MuscleKey } from '~/types/training'
+import type { BodyView, ExerciseDef, ExerciseKind, MuscleKey } from '~/types/training'
 
 definePageMeta({ tab: 'body' })
 
 const {
   view, selected, select,
   equipmentGroup, pickEquipment,
+  kind,
   exercises, loading, failed, retry: retryExerciseList,
   hasMore, loadingMore, loadMoreFailed, loadMore,
 } = useBodyMap()
@@ -21,6 +22,10 @@ const { hasExercise, addExercise } = useTraining()
 const { openPhotos } = useExercisePhotos()
 
 const VIEWS: { key: BodyView, label: string }[] = [{ key: 'front', label: 'Front' }, { key: 'back', label: 'Back' }]
+const KINDS: { key: ExerciseKind, label: string }[] = [{ key: 'exercises', label: 'Exercises' }, { key: 'stretches', label: 'Stretches' }]
+
+const { tabindex: kindTabindex, onKeydown: onKindKeydown } = useRadioGroup(KINDS.map(k => k.key), kind)
+const isStretches = computed(() => kind.value === 'stretches')
 
 /** Exercises that target the picked muscle, then the ones where it only assists. */
 const sections = computed(() => {
@@ -165,7 +170,22 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
         <h2 ref="resultsHeading" class="text-[20px] font-bold tracking-tight scroll-mt-4" :class="inkCls">
           {{ selected ? label(selected) : 'Find exercises' }}
         </h2>
-        <div v-if="equipmentError" class="flex flex-wrap items-center gap-x-3 gap-y-2" role="alert">
+        <div class="grid grid-cols-2 gap-1 p-1 rounded-[10px] w-full max-w-[280px]" :class="bgCls" role="radiogroup" aria-label="Exercise type" @keydown="onKindKeydown">
+          <button
+            v-for="k in KINDS"
+            :key="k.key"
+            type="button"
+            role="radio"
+            :aria-checked="kind === k.key"
+            :tabindex="kindTabindex(k.key)"
+            :class="[segmentCls, focusRingCls, kind === k.key ? segmentOnCls : inkSoftCls]"
+            @click="kind = k.key"
+          >
+            {{ k.label }}
+          </button>
+        </div>
+        <template v-if="isStretches" />
+        <div v-else-if="equipmentError" class="flex flex-wrap items-center gap-x-3 gap-y-2" role="alert">
           <span class="text-[13.5px]" :class="inkSoftCls">Couldn't load equipment.</span>
           <button
             type="button"
@@ -195,18 +215,18 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
       </div>
 
       <div v-if="!selected" class="rounded-2xl px-5 py-8 shadow-xs text-center" :class="cardCls">
-        <div class="text-[15px] font-semibold mb-1" :class="inkCls">Tap a muscle to see exercises</div>
-        <div class="text-[13.5px]" :class="inkSoftCls">Choose the equipment you have and add exercises to today's workout.</div>
+        <div class="text-[15px] font-semibold mb-1" :class="inkCls">Tap a muscle to see {{ kind }}</div>
+        <div class="text-[13.5px]" :class="inkSoftCls">{{ isStretches ? 'Add stretches to today\'s workout.' : 'Choose the equipment you have and add exercises to today\'s workout.' }}</div>
       </div>
-      <template v-else-if="equipmentError" />
-      <div v-else-if="equipmentPending" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkFaintCls]">
+      <template v-else-if="!isStretches && equipmentError" />
+      <div v-else-if="!isStretches && equipmentPending" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkFaintCls]">
         Loading exercises…
       </div>
-      <div v-else-if="!equipmentGroup" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
+      <div v-else-if="!isStretches && !equipmentGroup" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
         Pick a type of equipment.
       </div>
       <div v-else-if="failed || retryingExercises" class="rounded-2xl px-5 py-6 shadow-xs flex flex-wrap items-center gap-x-3 gap-y-2" :class="cardCls" role="alert">
-        <span class="text-[14px]" :class="inkSoftCls">Couldn't load exercises.</span>
+        <span class="text-[14px]" :class="inkSoftCls">Couldn't load {{ kind }}.</span>
         <button
           type="button"
           class="min-h-11 sm:min-h-8 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black disabled:opacity-50"
@@ -218,10 +238,10 @@ const chipOnCls = 'bg-ink text-white border-ink dark:bg-white dark:text-black da
         </button>
       </div>
       <div v-else-if="loading" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkFaintCls]">
-        Loading exercises…
+        Loading {{ kind }}…
       </div>
       <div v-else-if="!exercises.length" class="rounded-2xl px-5 py-6 shadow-xs text-[14px]" :class="[cardCls, inkSoftCls]">
-        No exercises for this filter.
+        {{ isStretches ? 'No stretches for this muscle.' : 'No exercises for this filter.' }}
       </div>
       <section v-for="section in sections" v-else :key="section.key" class="flex flex-col gap-2.5">
         <h3 class="text-[13px] font-bold tracking-wide uppercase mt-1" :class="inkFaintCls">{{ section.title }}</h3>
