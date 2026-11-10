@@ -90,7 +90,7 @@ export function useQuickLog() {
 
   function toggleFood(item: FoodItem) {
     if (inBasket(item.id)) basket.value = basket.value.filter(b => b.item.id !== item.id)
-    else basket.value.push({ item, amount: item.per, ...item.recipe && { ingredients: recipePortion(item, item.per) } })
+    else basket.value.push({ item, ...startingAmount(item), ...item.recipe && { ingredients: recipePortion(item, item.per) } })
   }
 
   /** The recipe's own amount of an ingredient for this entry's servings; undefined if it isn't in the recipe. */
@@ -120,7 +120,16 @@ export function useQuickLog() {
 
   function stepFood(id: string, dir: 1 | -1) {
     const entry = entryFor(id)
-    if (entry) setFoodAmount(id, stepAmount(entry.amount, entry.item.step, dir))
+    if (entry) setFoodAmount(id, stepAmount(entry.amount, stepFor(entry.item, entry.portion), dir))
+  }
+
+  /** Switches a basket line to grams (`null`) or one of its portions: 100 g or 1 of the portion, nothing converted. */
+  function setUnit(id: string, portion: string | null) {
+    const entry = entryFor(id)
+    if (!entry || entry.item.recipe) return
+    entry.amount = amountForUnit(portion)
+    if (portion) entry.portion = portion
+    else delete entry.portion
   }
 
   const ingredientIn = (entryId: string, ingredientId: string) => entryFor(entryId)?.ingredients?.find(i => i.item.id === ingredientId)
@@ -132,7 +141,7 @@ export function useQuickLog() {
 
   function stepIngredient(entryId: string, ingredientId: string, dir: 1 | -1) {
     const ing = ingredientIn(entryId, ingredientId)
-    if (ing) ing.amount = stepAmount(ing.amount, ing.item.step, dir)
+    if (ing) ing.amount = stepAmount(ing.amount, stepFor(ing.item, ing.portion), dir)
   }
 
   function removeIngredient(entryId: string, ingredientId: string) {
@@ -269,7 +278,7 @@ export function useQuickLog() {
   return {
     tab, search, saving, kg,
     now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
-    basket, meal, inBasket, toggleFood, stepFood, setFoodAmount,
+    basket, meal, inBasket, toggleFood, stepFood, setFoodAmount, setUnit,
     recipeAmount, isEdited, setIngredientAmount, stepIngredient, removeIngredient, removedIngredients, restoreIngredient, resetIngredients,
     activityQuery, activityResults, activity, activityAmount, activityKcal, selectActivity, stepActivity,
     estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,

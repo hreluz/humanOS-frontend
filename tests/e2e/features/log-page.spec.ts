@@ -12,7 +12,8 @@ const navLink = (page: Page, name: string) => page.getByRole('link', { name, exa
 
 /** Puts one food in the basket, so leaving asks first. */
 async function addBanana(page: Page) {
-  await logPage(page).getByRole('button', { name: 'Add Banana' }).click()
+  await logPage(page).getByLabel('Search foods').fill('banana')
+  await logPage(page).getByRole('button', { name: 'Add Banana', exact: true }).click()
   await expect(logPage(page).getByRole('button', { name: 'Log 1 item' })).toBeVisible()
 }
 
@@ -29,7 +30,7 @@ for (const theme of THEMES) {
       await expect(tabRadio(page, 'Food')).toHaveAttribute('aria-checked', 'true')
       // The sidebar Log (desktop) or the tab bar + (phones) shows where you are.
       await expect(page.getByRole('link', { name: /^(Log|Log food, activity or water)$/ }).filter({ visible: true })).toHaveAttribute('aria-current', 'page')
-      await expect(logPage(page).getByRole('button', { name: 'Add Banana' })).toBeVisible()
+      await expect(logPage(page).getByText('Type at least 3 letters to search.')).toBeVisible()
       await shot(page, testInfo, 'log-food', theme)
 
       await gotoReady(page, '/')

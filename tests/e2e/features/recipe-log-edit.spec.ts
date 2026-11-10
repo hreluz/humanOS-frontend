@@ -17,17 +17,17 @@ for (const theme of THEMES) {
       const dialog = logPage(page)
       await dialog.getByLabel('Search foods').fill('overnight oats')
       await dialog.getByRole('button', { name: 'Add Overnight oats' }).click()
-      await expect(dialog.getByText(/^275 kcal · /)).toBeVisible()
+      await expect(dialog.getByText(/^276 kcal · /)).toBeVisible()
 
       await dialog.getByRole('button', { name: 'Edit ingredients of Overnight oats' }).click()
       await expect(dialog.getByRole('heading', { name: 'Overnight oats' })).toBeVisible()
       await expect(dialog.getByRole('button', { name: 'Back to your list' })).toBeFocused()
-      await dialog.getByRole('button', { name: 'More Rolled oats' }).click()
-      await dialog.getByRole('button', { name: 'More Rolled oats' }).click()
+      await dialog.getByRole('button', { name: 'More Oats, rolled, dry' }).click()
+      await dialog.getByRole('button', { name: 'More Oats, rolled, dry' }).click()
       await dialog.getByRole('button', { name: 'Remove Honey' }).click()
       await expect(dialog.getByText('+20 g', { exact: true })).toBeVisible()
       await expect(dialog.getByText('Honey, 7 g')).toBeVisible()
-      await expect(dialog.getByText('329 kcal', { exact: true })).toBeVisible()
+      await expect(dialog.getByText('330 kcal', { exact: true })).toBeVisible()
       await shot(page, testInfo, 'recipe-log-editing', theme)
 
       // Left-out ingredients come back at the recipe's amount, in place.
@@ -36,10 +36,10 @@ for (const theme of THEMES) {
 
       // More servings keep the edit's proportions.
       await dialog.getByRole('button', { name: 'More Overnight oats' }).click()
-      await expect(dialog.getByLabel('Rolled oats amount')).toHaveValue('120')
+      await expect(dialog.getByLabel('Oats, rolled, dry amount')).toHaveValue('120')
 
       await dialog.getByRole('button', { name: 'Use recipe' }).click()
-      await expect(dialog.getByLabel('Rolled oats amount')).toHaveValue('80')
+      await expect(dialog.getByLabel('Oats, rolled, dry amount')).toHaveValue('80')
       await expect(dialog.getByRole('button', { name: 'Use recipe' })).toBeHidden()
 
       await dialog.getByRole('button', { name: 'Less Overnight oats' }).click()
@@ -47,7 +47,7 @@ for (const theme of THEMES) {
       await dialog.getByRole('button', { name: 'Done' }).click()
       await expect(dialog.getByRole('button', { name: 'Edit ingredients of Overnight oats' })).toBeFocused()
       await expect(dialog.getByText('Ingredients changed')).toBeVisible()
-      await expect(dialog.getByText(/^254 kcal · /)).toBeVisible()
+      await expect(dialog.getByText(/^255 kcal · /)).toBeVisible()
       await shot(page, testInfo, 'recipe-log-basket-edited', theme)
 
       // Escape steps back out of the editor before it closes the sheet.
@@ -70,11 +70,14 @@ for (const theme of THEMES) {
     test('ingredient amounts on the new recipe page', async ({ page }, testInfo) => {
       await gotoReady(page, '/food/recipes/new')
       await page.getByLabel('Recipe name').fill('Big oats')
-      await page.getByLabel('Add an ingredient').fill('rolled oats')
-      await page.getByRole('button', { name: /^Rolled oats/ }).click()
-      await page.getByRole('button', { name: 'More Rolled oats' }).click()
-      await page.getByRole('button', { name: 'More Rolled oats' }).click()
-      await expect(page.getByLabel('Rolled oats amount')).toHaveValue('60')
+      await page.getByLabel('Add an ingredient').fill('oats')
+      await page.getByRole('button', { name: /^Oats, rolled, dry/ }).click()
+      // Oats start at 1 × their first portion (1 cup); switch to grams and type the amount.
+      await expect(page.getByLabel('Unit for Oats, rolled, dry').locator('option:checked')).toHaveText('1 cup')
+      await page.getByLabel('Unit for Oats, rolled, dry').selectOption({ label: 'g' })
+      await page.getByLabel('Oats, rolled, dry amount').fill('60')
+      await page.getByLabel('Oats, rolled, dry amount').blur()
+      await expect(page.getByLabel('Oats, rolled, dry amount')).toHaveValue('60')
       await shot(page, testInfo, 'recipe-page-amounts', theme)
       await page.getByRole('button', { name: 'Save recipe' }).filter({ visible: true }).click()
       await expect(page).toHaveURL(/\/food$/)
@@ -83,9 +86,9 @@ for (const theme of THEMES) {
       const dialog = logPage(page)
       await dialog.getByLabel('Search foods').fill('big oats')
       await dialog.getByRole('button', { name: 'Add Big oats' }).click()
-      await expect(dialog.getByText(/^225 kcal · /)).toBeVisible()
+      await expect(dialog.getByText(/^227 kcal · /)).toBeVisible()
       await dialog.getByRole('button', { name: 'Edit ingredients of Big oats' }).click()
-      await expect(dialog.getByLabel('Rolled oats amount')).toHaveValue('60')
+      await expect(dialog.getByLabel('Oats, rolled, dry amount')).toHaveValue('60')
     })
   })
 }

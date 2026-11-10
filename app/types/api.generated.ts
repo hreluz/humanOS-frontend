@@ -217,6 +217,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/nutrition/ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search ingredients
+         * @description Returns every ingredient whose English name or English alias contains `search`, ignoring case and
+         *     accents, in one unpaginated list: the catalog plus the caller's own ingredients, never another
+         *     user's. A user's ingredient matches on its name only. Ranked by the name: an exact match first, then
+         *     names starting with the term, then names with a word starting with it, then the rest (mid-word or
+         *     alias-only matches); ties sort by name, then key. The caller's own ingredients get no priority and are
+         *     marked by `is_mine`. Values are per 100 g. `nutrients` and `source` are only returned by the detail
+         *     endpoint. Each ingredient's first photo is its main photo; use its `thumbnail_url` in lists.
+         */
+        get: operations["ingredient.index"];
+        put?: never;
+        /**
+         * Create an ingredient
+         * @description Creates a private ingredient owned by the caller, with its macros per 100 g as on a food label and
+         *     up to 10 portions. The ingredient gets a generated `u_` key and each portion a generated `p_` key;
+         *     neither changes afterwards. Returns the detail shape.
+         */
+        post: operations["ingredient.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nutrition/ingredients/{ingredient}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show an ingredient
+         * @description Returns one ingredient by its key, with every measured nutrient per 100 g and the data source. A
+         *     nutrient that wasn't measured is left out; clients show it as "no data". Another user's ingredient
+         *     is a 404. A user's ingredient has no nutrients or photos yet, and its source is `user` with a `null` id.
+         */
+        get: operations["ingredient.show"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an ingredient
+         * @description Deletes the caller's own ingredient and its portions. It's gone from every endpoint afterwards. Only
+         *     the owner may delete: a catalog ingredient is a 403, another user's is a 404.
+         */
+        delete: operations["ingredient.destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * Update an ingredient
+         * @description Changes only the fields sent; `fiber: null` clears the fiber. The sum rule is checked with stored
+         *     values filling the fields not sent. `portions`, when sent, is the full new list: items with a `key`
+         *     update that portion, items without one are new portions, and portions left out are removed. Only the
+         *     owner may edit: a catalog ingredient is a 403, another user's is a 404. Returns the detail shape.
+         */
+        patch: operations["ingredient.update"];
+        trace?: never;
+    };
+    "/v1/nutrition/my-ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my ingredients
+         * @description Returns the caller's own ingredients, paginated and sorted by name, then key. Items have the search
+         *     shape: `nutrients` and `source` are only returned by the detail endpoint.
+         */
+        get: operations["ingredient.mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/profile": {
         parameters: {
             query?: never;
@@ -530,6 +617,142 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * IngredientCategory
+         * @description How a person shops for the food. The frontend's 13 keys (`app/types/food.ts`).
+         * @enum {string}
+         */
+        IngredientCategory: "meat" | "seafood" | "eggs" | "plant_protein" | "dairy" | "grains" | "legumes" | "vegetables" | "fruit" | "fats" | "condiments" | "supplements" | "other";
+        /** IngredientNutrientResource */
+        IngredientNutrientResource: {
+            /** @example cholesterol */
+            key: string;
+            /** @example Cholesterol */
+            label: string;
+            /** @example fats_and_sugars */
+            group: components["schemas"]["NutrientGroup"];
+            /** @example mg */
+            unit: components["schemas"]["NutrientUnit"];
+            /**
+             * @description Amount per 100 g, in `unit`. A measured `0` is sent as `0`.
+             * @example 411
+             */
+            amount: number;
+        };
+        /** IngredientPhotoResource */
+        IngredientPhotoResource: {
+            /**
+             * @description The photo at the detail-view width. Use it as given; never build photo URLs.
+             * @example https://commons.wikimedia.org/wiki/Special:FilePath/Example_avocado_whole.jpg?width=960
+             */
+            url: string;
+            /**
+             * @description The photo at the list and card width. Use it as given; never build photo URLs.
+             * @example https://commons.wikimedia.org/wiki/Special:FilePath/Example_avocado_whole.jpg?width=330
+             */
+            thumbnail_url: string;
+            /**
+             * @description License short name. Clients must show it wherever they show the photo, linked to `license_url` when set.
+             * @example CC BY-SA 4.0
+             */
+            license: string | null;
+            /**
+             * @description Link to the license. `null` only for some `CC0` and `Public domain` photos.
+             * @example https://creativecommons.org/licenses/by-sa/4.0
+             */
+            license_url: string | null;
+            /**
+             * @description Credit for the photo. Clients must show it when set. `null` for `CC0` and `Public domain` photos.
+             * @example Example Author
+             */
+            author: string | null;
+            /**
+             * @description The photo's source page. Clients must link to it wherever they show the photo.
+             * @example https://commons.wikimedia.org/wiki/File:Example_avocado_whole.jpg
+             */
+            credit_url: string | null;
+        };
+        /** IngredientPortionResource */
+        IngredientPortionResource: {
+            /**
+             * @description Stable identifier of the portion within its ingredient.
+             * @example large
+             */
+            key: string;
+            /** @example 1 large egg */
+            label: string;
+            /**
+             * @description Weight of the portion in grams.
+             * @example 50
+             */
+            grams: number;
+        };
+        /** IngredientResource */
+        IngredientResource: {
+            /**
+             * @description Stable identifier, used in the URL. Catalog keys are snake_case words; a user's ingredient has a
+             *     generated `u_` key.
+             * @example egg_whole_raw
+             */
+            key: string;
+            /**
+             * @description English name for catalog ingredients. A user's ingredient returns its name as written, in any language.
+             * @example Egg, whole, raw
+             */
+            name: string;
+            /** @example eggs */
+            category: components["schemas"]["IngredientCategory"];
+            /**
+             * @description Whether the caller owns the ingredient: `true` for their own, `false` for catalog ingredients.
+             * @example false
+             */
+            is_mine: boolean;
+            /**
+             * @description Energy and macronutrients per 100 g: `kcal` in kcal, the rest in grams. `fiber` is `null` when it
+             *     isn't known; clients show it as "no data" and leave it out of totals.
+             * @example {
+             *       "kcal": 148,
+             *       "protein": 12.4,
+             *       "carbs": 0.96,
+             *       "fat": 9.96,
+             *       "fiber": 0
+             *     }
+             */
+            per_100g: {
+                kcal: number;
+                protein: number;
+                carbs: number;
+                fat: number;
+                fiber: number | null;
+            };
+            /** @description Portions in display order. Can be empty. */
+            portions: components["schemas"]["IngredientPortionResource"][];
+            /**
+             * @description Photos in display order. The first is the main photo, for lists and thumbnails. Can be empty. Clients must
+             *     show each photo's `author`, license and a link to `credit_url` wherever they show it.
+             */
+            photos: components["schemas"]["IngredientPhotoResource"][];
+            /** @description Measured nutrients per 100 g, in display order. Unmeasured ones are left out. Only returned by the detail endpoint. */
+            nutrients?: components["schemas"]["IngredientNutrientResource"][];
+            /**
+             * @description Where the values come from: the USDA FoodData Central dataset and the FDC id, or `user` with a `null`
+             *     id for a user's ingredient. Only returned by the detail endpoint.
+             * @example {
+             *       "type": "usda_foundation",
+             *       "id": "748967"
+             *     }
+             */
+            source?: {
+                type: components["schemas"]["IngredientSource"];
+                id: string | null;
+            };
+        };
+        /**
+         * IngredientSource
+         * @description Where an ingredient's values come from: a USDA FoodData Central dataset (SPEC 15), or the user who typed them in (SPEC 18). Catalog entries never use `user`.
+         * @enum {string}
+         */
+        IngredientSource: "usda_foundation" | "usda_sr_legacy" | "user";
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -571,6 +794,16 @@ export interface components {
          * @enum {string}
          */
         MuscleRole: "primary" | "secondary";
+        /**
+         * NutrientGroup
+         * @enum {string}
+         */
+        NutrientGroup: "fats_and_sugars" | "minerals" | "vitamins";
+        /**
+         * NutrientUnit
+         * @enum {string}
+         */
+        NutrientUnit: "g" | "mg" | "ug";
         /**
          * PhotoSource
          * @enum {string}
@@ -647,6 +880,66 @@ export interface components {
          * @enum {string}
          */
         Sex: "male" | "female";
+        /**
+         * StoreIngredientRequest
+         * @description A new private ingredient, typed in from a food label (SPEC 18). Strings are trimmed by the global middleware.
+         */
+        StoreIngredientRequest: {
+            /**
+             * @description 1–100 characters after trimming, in any language. Not unique.
+             * @example Protein bar, chocolate
+             */
+            name: string;
+            /** @example supplements */
+            category: components["schemas"]["IngredientCategory"];
+            /**
+             * @description Energy per 100 g, in kcal. Not checked against the macros: labels round, and alcohol or sugar
+             *     alcohols add calories the macros don't explain.
+             * @example 380
+             */
+            kcal: number;
+            /**
+             * @description Grams per 100 g.
+             * @example 33
+             */
+            protein: number;
+            /**
+             * @description Grams per 100 g.
+             * @example 38
+             */
+            carbs: number;
+            /**
+             * @description Grams per 100 g. `protein + carbs + fat` may be at most 100.
+             * @example 11
+             */
+            fat: number;
+            /**
+             * @description Grams per 100 g. Leave it out or send `null` when the label doesn't list it. Not in the sum rule.
+             * @example 9
+             */
+            fiber?: number | null;
+            /**
+             * @description Measures in display order, at most 10. Keys are generated.
+             * @example [
+             *       {
+             *         "label": "1 bar",
+             *         "grams": 45
+             *       }
+             *     ]
+             */
+            portions?: {
+                /**
+                 * @description 1–50 characters after trimming.
+                 * @example 1 bar
+                 */
+                label: string;
+                /**
+                 * @description Weight of the measure in grams: more than 0, at most 5000.
+                 * @example 45
+                 */
+                grams: number;
+            }[];
+        };
         /** TargetWeightEntryResource */
         TargetWeightEntryResource: {
             /** @example 7 */
@@ -682,6 +975,78 @@ export interface components {
          * @enum {string}
          */
         UnitSystem: "metric" | "imperial";
+        /**
+         * UpdateIngredientRequest
+         * @description A partial edit of the caller's own ingredient (SPEC 18). A field that isn't sent keeps its stored value.
+         *     Authorization runs before validation, so a catalog ingredient is a 403 whatever the body.
+         */
+        UpdateIngredientRequest: {
+            /**
+             * @description 1–100 characters after trimming, in any language. Not unique.
+             * @example Protein bar, dark chocolate
+             */
+            name?: string;
+            /** @example supplements */
+            category?: components["schemas"]["IngredientCategory"];
+            /**
+             * @description Energy per 100 g, in kcal.
+             * @example 380
+             */
+            kcal?: number;
+            /**
+             * @description Grams per 100 g.
+             * @example 33
+             */
+            protein?: number;
+            /**
+             * @description Grams per 100 g.
+             * @example 38
+             */
+            carbs?: number;
+            /**
+             * @description Grams per 100 g. `protein + carbs + fat`, with stored values filling the fields not sent, may be at most 100.
+             * @example 11
+             */
+            fat?: number;
+            /**
+             * @description Grams per 100 g. `null` clears it.
+             * @example 9
+             */
+            fiber?: number | null;
+            /**
+             * @description The full new list of portions, in display order, at most 10. Leave it out to keep the portions as they
+             *     are. An item with a `key` updates that portion, an item without one is a new portion, and a portion
+             *     left out is removed. `[]` removes them all.
+             * @example [
+             *       {
+             *         "key": "p_8k2d4x7q",
+             *         "label": "1 bar",
+             *         "grams": 45
+             *       },
+             *       {
+             *         "label": "2 bars",
+             *         "grams": 90
+             *       }
+             *     ]
+             */
+            portions?: {
+                /**
+                 * @description A current portion of this ingredient, at most once. Leave it out for a new portion.
+                 * @example p_8k2d4x7q
+                 */
+                key?: string;
+                /**
+                 * @description 1–50 characters after trimming.
+                 * @example 1 bar
+                 */
+                label: string;
+                /**
+                 * @description Weight of the measure in grams: more than 0, at most 5000.
+                 * @example 45
+                 */
+                grams: number;
+            }[];
+        };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
             /**
@@ -778,6 +1143,18 @@ export interface components {
         };
         /** @description Not found */
         ModelNotFoundException: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @description Error overview. */
+                    message: string;
+                };
+            };
+        };
+        /** @description Authorization error */
+        AuthorizationException: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1152,6 +1529,216 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "ingredient.index": {
+        parameters: {
+            query: {
+                /**
+                 * @description Matched anywhere in the English name or an English alias, ignoring case and accents.
+                 * @example rice
+                 */
+                search: string;
+                /**
+                 * @description Only these categories.
+                 * @example [
+                 *       "grains",
+                 *       "vegetables"
+                 *     ]
+                 */
+                "category[]"?: components["schemas"]["IngredientCategory"][];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `IngredientResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["IngredientResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "ingredient.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreIngredientRequest"];
+            };
+        };
+        responses: {
+            /** @description `IngredientResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["IngredientResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "ingredient.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ingredient key */
+                ingredient: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `IngredientResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["IngredientResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "ingredient.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ingredient key */
+                ingredient: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "ingredient.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ingredient key */
+                ingredient: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateIngredientRequest"];
+            };
+        };
+        responses: {
+            /** @description `IngredientResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["IngredientResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "ingredient.mine": {
+        parameters: {
+            query?: {
+                /**
+                 * @description Page number. Defaults to 1.
+                 * @example 1
+                 */
+                page?: number;
+                /**
+                 * @description Page size. Defaults to 50.
+                 * @example 50
+                 */
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `IngredientResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["IngredientResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "profile.show": {

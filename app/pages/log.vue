@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import type { RouteLocationNormalized } from 'vue-router'
+import type { FoodItem } from '~/types/food'
 
 definePageMeta({ tab: 'log' })
 
 const {
   tab, search, saving, kg,
   now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
-  basket, meal, inBasket, toggleFood, stepFood, setFoodAmount,
+  basket, meal, inBasket, toggleFood, stepFood, setFoodAmount, setUnit,
   recipeAmount, isEdited, setIngredientAmount, stepIngredient, removeIngredient, removedIngredients, restoreIngredient, resetIngredients,
   activityQuery, activityResults, activity, activityAmount, selectActivity, stepActivity,
   estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,
   waterMl, stepWater,
   impact, canSubmit, submitLabel, submit, hasApproved, leave,
 } = useQuickLog()
-const { query, tab: foodTab, results } = search
+const { query, tab: foodTab, results, loading: searching, failed: searchFailed, needsMore, retry: retrySearch } = search
 const { tabindex, onKeydown } = useRadioGroup(QUICK_LOG_TABS.map(t => t.key), tab)
 
 const searchBoxCls = ['rounded-xl px-3.5 py-2.5 flex items-center gap-2', bgCls]
@@ -104,6 +105,13 @@ function onWindowKeydown(e: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onWindowKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
 
+/** "My food · Eggs · 100 g · 155 kcal" for ingredients, "Recipe · 1 serving · 420 kcal" for recipes. */
+function resultMeta(food: FoodItem) {
+  const kcal = `${Math.round(food.kcal)} kcal`
+  if (food.recipe) return `Recipe · 1 serving · ${kcal}`
+  return [food.isMine && 'My food', food.category && categoryLabel(food.category), '100 g', kcal].filter(Boolean).join(' · ')
+}
+
 // Invisible hit-slop so small round buttons still get a ~44px tap area.
 const hitSlopCls = 'relative after:absolute after:-inset-1.5 after:content-[\'\']'
 const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-center gap-3 text-left border-2', focusRingCls, on ? 'border-ink dark:border-white' : 'border-transparent', bgCls]
@@ -153,17 +161,17 @@ const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-cent
                 <div class="flex-1 min-w-0">
                   <div class="text-[14.5px] font-semibold truncate" :class="inkCls">{{ ing.item.name }}</div>
                   <div class="text-xs tabular-nums" :class="inkFaintCls">
-                    {{ scaleFood(ing.item, ing.amount).kcal }} kcal
-                    <template v-if="formatAmountChange(ing.item, recipeAmount(editing, ing.item.id) ?? 0, ing.amount)">
-                      · <span :class="inkSoftCls">{{ formatAmountChange(ing.item, recipeAmount(editing, ing.item.id) ?? 0, ing.amount) }}</span>
+                    {{ scaleFood(ing.item, ing.amount, ing.portion).kcal }} kcal
+                    <template v-if="formatAmountChange(ing.item, recipeAmount(editing, ing.item.id) ?? 0, ing.amount, ing.portion)">
+                      · <span :class="inkSoftCls">{{ formatAmountChange(ing.item, recipeAmount(editing, ing.item.id) ?? 0, ing.amount, ing.portion) }}</span>
                     </template>
                   </div>
                 </div>
                 <AppStepper
                   :model-value="ing.amount"
-                  :unit="portionUnit(ing.item, ing.amount)"
+                  :unit="portionUnit(ing.item, ing.amount, ing.portion)"
                   :label="ing.item.name"
-                  :max="AMOUNT_LIMITS[ing.item.unit]"
+                  :max="amountLimit(ing.item, ing.portion)"
                   @update:model-value="n => setIngredientAmount(editing!.item.id, ing.item.id, n)"
                   @step="dir => stepIngredient(editing!.item.id, ing.item.id, dir)"
                 />
@@ -185,7 +193,7 @@ const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-cent
             <h3 id="removed-heading" class="text-[13px] font-semibold mb-1" :class="inkSoftCls">Left out</h3>
             <ul class="flex flex-col">
               <li v-for="ing in removedIngredients(editing)" :key="ing.item.id" class="flex items-center gap-3 py-2.5 border-t first:border-t-0" :class="dividerCls">
-                <div class="flex-1 min-w-0 text-[14.5px] truncate line-through decoration-1" :class="inkFaintCls">{{ ing.item.name }}, {{ formatPortion(ing.item, ing.amount) }}</div>
+                <div class="flex-1 min-w-0 text-[14.5px] truncate line-through decoration-1" :class="inkFaintCls">{{ ing.item.name }}, {{ formatPortion(ing.item, ing.amount, ing.portion) }}</div>
                 <button
                   type="button"
                   :aria-label="`Add back ${ing.item.name}`"
@@ -269,24 +277,33 @@ const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-cent
             </button>
           </div>
           <div class="flex-1 overflow-auto px-5 pb-4 pt-3 flex flex-col gap-2">
-            <div v-for="food in results ?? []" :key="food.id" :class="rowCls(inBasket(food.id))">
-              <div class="flex-1 min-w-0">
-                <div class="text-[14.5px] font-semibold" :class="inkCls">{{ food.name }}</div>
-                <div class="text-xs" :class="inkFaintCls">{{ food.brand }} · {{ food.serving }} · {{ food.kcal }} kcal</div>
-              </div>
-              <button
-                type="button"
-                :aria-label="`Add ${food.name}`"
-                :aria-pressed="inBasket(food.id)"
-                class="w-7 h-7 rounded-full flex items-center justify-center text-base shrink-0"
-                :class="[focusRingCls, inBasket(food.id) ? 'bg-accent-green dark:bg-accent-green-dark text-white' : 'bg-ink text-white dark:bg-white dark:text-black']"
-                @click="toggleFood(food)"
-              >
-                <AppIcon v-if="inBasket(food.id)" :path="ICONS.check" class="w-3.5 h-3.5" />
-                <template v-else>+</template>
-              </button>
+            <div v-if="needsMore" class="text-[13.5px] py-6 text-center" :class="inkFaintCls">Type at least 3 letters to search.</div>
+            <div v-else-if="searching" class="text-[13.5px] py-6 text-center" :class="inkFaintCls">Searching…</div>
+            <div v-else-if="searchFailed" role="alert" class="py-6 flex flex-col items-center gap-3">
+              <span class="text-[13.5px]" :class="inkSoftCls">Couldn't load foods.</span>
+              <button type="button" class="min-h-9 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black" :class="focusRingCls" @click="retrySearch">Retry</button>
             </div>
-            <div v-if="results && !results.length" class="text-[13.5px] py-6 text-center" :class="inkFaintCls">No foods match “{{ query }}”</div>
+            <div v-else-if="results && !results.length" class="text-[13.5px] py-6 text-center" :class="inkFaintCls">No foods match “{{ query }}”</div>
+            <template v-else>
+              <div v-for="food in results ?? []" :key="food.id" :class="rowCls(inBasket(food.id))">
+                <AppFoodThumb :food="food" />
+                <div class="flex-1 min-w-0">
+                  <div class="text-[14.5px] font-semibold" :class="inkCls">{{ food.name }}</div>
+                  <div class="text-xs" :class="inkFaintCls">{{ resultMeta(food) }}</div>
+                </div>
+                <button
+                  type="button"
+                  :aria-label="`Add ${food.name}`"
+                  :aria-pressed="inBasket(food.id)"
+                  class="w-7 h-7 rounded-full flex items-center justify-center text-base shrink-0"
+                  :class="[focusRingCls, inBasket(food.id) ? 'bg-accent-green dark:bg-accent-green-dark text-white' : 'bg-ink text-white dark:bg-white dark:text-black']"
+                  @click="toggleFood(food)"
+                >
+                  <AppIcon v-if="inBasket(food.id)" :path="ICONS.check" class="w-3.5 h-3.5" />
+                  <template v-else>+</template>
+                </button>
+              </div>
+            </template>
           </div>
         </template>
 
@@ -347,17 +364,19 @@ const rowCls = (on: boolean) => ['w-full rounded-2xl px-3.5 py-3 flex items-cent
             <template v-if="tab === 'food'">
               <div v-if="basket.length" class="flex flex-col gap-2 md:max-h-[140px] md:overflow-auto -m-1 p-1">
                 <div v-for="b in basket" :key="b.item.id" data-entry>
-                  <div class="flex items-center gap-3">
-                    <div class="flex-1 min-w-0">
+                  <!-- With the unit picker, phones put the controls under the name so it keeps its line. -->
+                  <div class="flex items-center gap-x-3 gap-y-1.5" :class="hasUnitPicker(b.item) && 'flex-wrap sm:flex-nowrap'">
+                    <div class="flex-1 min-w-0" :class="hasUnitPicker(b.item) && 'basis-full sm:basis-0'">
                       <div class="text-[14px] font-semibold truncate" :class="inkCls">{{ b.item.name }}</div>
                       <div class="text-xs" :class="inkFaintCls">{{ entryMacros(b).kcal }} kcal · {{ entryMacros(b).p }}g protein</div>
                     </div>
+                    <AppUnitSelect :item="b.item" :portion="b.portion" class="ml-auto sm:ml-0" @change="p => setUnit(b.item.id, p)" />
                     <AppStepper
                       :model-value="b.amount"
-                      :unit="portionUnit(b.item, b.amount)"
+                      :unit="stepperUnit(b.item, b.amount, b.portion)"
                       :label="b.item.name"
-                      :integer="b.item.unit === 'piece' || b.item.unit === 'serving'"
-                      :max="AMOUNT_LIMITS[b.item.unit]"
+                      :integer="b.item.unit === 'serving'"
+                      :max="amountLimit(b.item, b.portion)"
                       @update:model-value="n => setFoodAmount(b.item.id, n)"
                       @step="dir => stepFood(b.item.id, dir)"
                     />

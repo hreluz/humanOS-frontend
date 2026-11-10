@@ -4,8 +4,8 @@ import type { FoodItem } from '~/types/food'
 definePageMeta({ tab: 'food' })
 
 const {
-  recipe, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing, cost,
-  refreshCatalog, changeServings, addIngredient, stepIngredient, removeIngredient, startCreate, save,
+  recipe, query, results, loading, failed, needsMore, retry, pickerMode, saving, canSave, saveHint, totals, perServing, cost,
+  changeServings, addIngredient, stepIngredient, setUnit, removeIngredient, startCreate, save,
 } = useRecipe()
 
 const searchInput = ref<HTMLInputElement>()
@@ -37,9 +37,17 @@ function pick(item: FoodItem, e?: MouseEvent) {
   else blurActive()
 }
 
-async function onCreated(item: FoodItem) {
+function onCreated(item: FoodItem) {
   pick(item)
-  await refreshCatalog()
+}
+
+const g1 = (n: number) => Math.round(n * 10) / 10
+/** "My food · Eggs · 100 g · 155 kcal · 12.6g protein · 1.1g carbs · $0.40", all per 100 g. */
+function pickerMeta(item: FoodItem) {
+  return [
+    item.isMine && 'My food', item.category && categoryLabel(item.category), '100 g', `${Math.round(item.kcal)} kcal`,
+    `${g1(item.p)}g protein`, `${g1(item.c)}g carbs`, item.price !== undefined && formatPrice(item.price),
+  ].filter(Boolean).join(' · ')
 }
 
 function backToSearch() {
@@ -104,16 +112,18 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
             <li v-for="(ing, idx) in recipe.ingredients" :key="ing.item.id" class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 py-2.5 border-t first:border-t-0" :class="dividerCls">
               <div class="basis-full sm:basis-auto flex-1 min-w-0">
                 <div class="text-[14.5px] font-semibold" :class="inkCls">{{ ing.item.name }}</div>
-                <div class="text-[12.5px]" :class="inkSoftCls">{{ scaleFood(ing.item, ing.amount).kcal }} kcal · {{ scaleFood(ing.item, ing.amount).p }}g protein · {{ scaleFood(ing.item, ing.amount).c }}g carbs<template v-if="ing.item.price !== undefined"> · <span data-testid="line-cost" class="tabular-nums">{{ formatPrice(scalePrice(ing.item, ing.amount)!) }}</span></template></div>
+                <div class="text-[12.5px]" :class="inkSoftCls">{{ scaleFood(ing.item, ing.amount, ing.portion).kcal }} kcal · {{ scaleFood(ing.item, ing.amount, ing.portion).p }}g protein · {{ scaleFood(ing.item, ing.amount, ing.portion).c }}g carbs<template v-if="ing.item.price !== undefined"> · <span data-testid="line-cost" class="tabular-nums">{{ formatPrice(scalePrice(ing.item, ing.amount, ing.portion)!) }}</span></template></div>
               </div>
-              <AppStepper
-                v-model="ing.amount"
-                :unit="portionUnit(ing.item, ing.amount)"
-                :label="ing.item.name"
-                :max="AMOUNT_LIMITS[ing.item.unit]"
-                class="ml-auto sm:ml-0"
-                @step="dir => stepIngredient(idx, dir)"
-              />
+              <div class="ml-auto sm:ml-0 flex items-center gap-2 min-w-0">
+                <AppUnitSelect :item="ing.item" :portion="ing.portion" @change="p => setUnit(idx, p)" />
+                <AppStepper
+                  v-model="ing.amount"
+                  :unit="stepperUnit(ing.item, ing.amount, ing.portion)"
+                  :label="ing.item.name"
+                  :max="amountLimit(ing.item, ing.portion)"
+                  @step="dir => stepIngredient(idx, dir)"
+                />
+              </div>
               <button ref="removeBtns" type="button" :aria-label="`Remove ${ing.item.name}`" class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-[17px]" :class="[bgCls, inkSoftCls, focusRingCls, hitSlopCls, pressCls]" @click="remove(idx)">×</button>
             </li>
           </ul>
@@ -136,21 +146,31 @@ const picking = computed(() => typing.value || !!trimmedQuery.value || pickerMod
                 >
               </label>
               <div v-if="trimmedQuery" :id="resultsId" class="flex flex-col gap-1.5 mt-2">
-                <button
-                  v-for="item in filteredCatalog"
-                  :key="item.id"
-                  type="button"
-                  class="rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 text-left"
-                  :class="[bgCls, focusRingCls, pressCls]"
-                  @click="pick(item, $event)"
-                >
-                  <div class="min-w-0">
-                    <div class="text-sm font-semibold" :class="inkCls">{{ item.name }}</div>
-                    <div class="text-[12px]" :class="inkSoftCls"><template v-if="item.brand === 'My food'">My food · </template><template v-if="item.category">{{ categoryLabel(item.category) }} · </template>{{ item.serving }} · {{ item.kcal }} kcal · {{ item.p }}g protein · {{ item.c }}g carbs<template v-if="item.price !== undefined"> · <span class="tabular-nums">{{ formatPrice(item.price) }}</span></template></div>
+                <div v-if="needsMore" class="text-[13.5px] text-center py-1" :class="inkSoftCls">Type at least 3 letters to search.</div>
+                <div v-else-if="loading" class="text-[13.5px] text-center py-1" :class="inkSoftCls">Searching…</div>
+                <div v-else-if="failed" role="alert" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 py-1">
+                  <span class="text-[13.5px]" :class="inkSoftCls">Couldn't load foods.</span>
+                  <button type="button" class="min-h-9 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black" :class="focusRingCls" @click="retry">Retry</button>
+                </div>
+                <div v-else-if="results && !results.length" role="status" class="text-[13.5px] text-center py-1" :class="inkSoftCls">No foods match “{{ trimmedQuery }}”</div>
+                <template v-else>
+                  <!-- The thumbnail is its own tap target, beside the row's add button. -->
+                  <div v-for="item in results ?? []" :key="item.id" class="rounded-xl pl-2.5 flex items-center gap-2" :class="[bgCls, !item.photos.length && 'pl-0']">
+                    <AppFoodThumb :food="item" />
+                    <button
+                      type="button"
+                      class="flex-1 min-w-0 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 text-left"
+                      :class="[focusRingCls, pressCls]"
+                      @click="pick(item, $event)"
+                    >
+                      <div class="min-w-0">
+                        <div class="text-sm font-semibold" :class="inkCls">{{ item.name }}</div>
+                        <div class="text-[12px] tabular-nums" :class="inkSoftCls">{{ pickerMeta(item) }}</div>
+                      </div>
+                      <span class="text-base shrink-0" :class="linkBlueCls" aria-hidden="true">+</span>
+                    </button>
                   </div>
-                  <span class="text-base shrink-0" :class="linkBlueCls" aria-hidden="true">+</span>
-                </button>
-                <div role="status" class="text-[13.5px] text-center empty:hidden" :class="inkSoftCls"><template v-if="!filteredCatalog.length">No match for “{{ trimmedQuery }}”.</template></div>
+                </template>
                 <button type="button" class="border-[1.5px] border-dashed border-accent-blue/40 rounded-xl px-3.5 py-2.5 text-[13.5px] font-semibold" :class="[linkBlueCls, focusRingCls]" @click="startCreate">
                   + Create “{{ trimmedQuery }}”
                 </button>

@@ -1,6 +1,6 @@
 # SPEC 12 — Ingredients API
 
-> **Status:** Draft
+> **Status:** Approved
 > **Depends on:** SPEC 03, SPEC 04, SPEC 05, SPEC 06, SPEC 11
 > **Date:** 2026-11-06
 > **Objective:** Replace the mocked ingredient catalog and custom foods with the backend's ingredient search, detail and user-ingredient CRUD endpoints, with macros per 100 g, gram portions that can be picked when logging or building a recipe, and credited photos.
@@ -19,7 +19,7 @@ The API's model differs from the mocks in ways the UI can't hide:
 | Brand | None. `is_mine` marks the user's own | `brand`, with `My food` for custom foods |
 | Search | `?search=` needs 3–100 characters. There is no browse | Every item, filtered locally |
 | User's list | `GET /my-ingredients`, paginated, by name | Every custom food, newest first |
-| Prices | None yet (backend SPEC 24 is a Draft) | `price` on catalog and custom foods |
+| Prices | None yet (backend SPEC 24 is a Approved) | `price` on catalog and custom foods |
 | Photos | 1–3 Wikimedia photos that must be credited | None |
 
 This spec switches every ingredient read and write to the API and adapts the UI to that model. Recipes, the food log and Recent stay mocked, because their backend specs (19, 25) aren't built.

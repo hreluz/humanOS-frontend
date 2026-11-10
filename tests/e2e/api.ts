@@ -67,6 +67,32 @@ export async function saveProfile(user: TestUser, body: ProfileBody) {
   await send('PUT', '/v1/profile', body, user.token)
 }
 
+/** POST /v1/nutrition/ingredients body (macros per 100 g, as the API reads them). */
+export interface IngredientBody {
+  name: string
+  category: string
+  kcal: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber?: number | null
+  portions?: { label: string, grams: number }[]
+}
+
+/** Creates one of `user`'s own ingredients through the API; returns its key. */
+export async function createIngredient(user: TestUser, body: IngredientBody): Promise<string> {
+  const { data } = await send<{ data: { key: string } }>('POST', '/v1/nutrition/ingredients', body, user.token)
+  return data.key
+}
+
+/** An ingredient's API resource, read as `user` (e.g. a catalog item's photo credits). */
+export async function getIngredient(user: TestUser, key: string) {
+  const res = await fetch(`${API_BASE}/v1/nutrition/ingredients/${key}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${user.token}` } })
+  if (!res.ok) throw new Error(`GET ingredient ${key} → ${res.status}`)
+  const { data } = await res.json() as { data: { photos: { author: string | null, license: string | null, license_url: string | null, credit_url: string | null }[] } }
+  return data
+}
+
 /** Passes a user registered in global setup to the workers through env vars. */
 export function exportUser(prefix: string, user: TestUser) {
   process.env[`${prefix}_ID`] = String(user.id)

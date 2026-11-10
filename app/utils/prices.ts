@@ -1,4 +1,5 @@
 import type { FoodItem, RecipeIngredient } from '~/types/food'
+import { gramsOf } from './logging'
 
 /** Priced total of a list of ingredients, and how many had no price. */
 export interface PriceSum {
@@ -6,15 +7,15 @@ export interface PriceSum {
   unpriced: number
 }
 
-/** Cost of `amount` of `item`, in the item's unit; null when the item has no price. Not rounded. */
-export function scalePrice(item: FoodItem, amount: number): number | null {
-  return item.price === undefined ? null : item.price * amount / item.per
+/** Cost of `amount` of `item` (a count of `portion` when set, else in the item's unit); null when the item has no price. Not rounded. */
+export function scalePrice(item: FoodItem, amount: number, portion?: string): number | null {
+  return item.price === undefined ? null : item.price * gramsOf(item, amount, portion) / item.per
 }
 
 /** Sum of the priced lines (unrounded), and how many lines had no price. */
 export function sumPrice(ingredients: RecipeIngredient[]): PriceSum {
   return ingredients.reduce((sum, i) => {
-    const cost = scalePrice(i.item, i.amount)
+    const cost = scalePrice(i.item, i.amount, i.portion)
     return cost === null ? { ...sum, unpriced: sum.unpriced + 1 } : { ...sum, total: sum.total + cost }
   }, { total: 0, unpriced: 0 })
 }

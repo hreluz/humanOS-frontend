@@ -19,6 +19,7 @@ export interface LoggedIngredient {
   name: string
   amount: number
   unit: PortionUnit
+  portion?: string
 }
 
 export type FoodLog = Record<MealKey, LoggedFood[]>
@@ -30,56 +31,92 @@ export interface Macros {
   f: number
 }
 
-export type PortionUnit = 'g' | 'ml' | 'piece' | 'serving'
+/** `g` for ingredients, `serving` for recipes. */
+export type PortionUnit = 'g' | 'serving'
 
 export type IngredientCategory = 'meat' | 'seafood' | 'eggs' | 'plant_protein' | 'dairy' | 'grains' | 'legumes' | 'vegetables' | 'fruit' | 'fats' | 'condiments' | 'supplements' | 'other'
 
+export interface IngredientPortion {
+  key: string
+  label: string
+  grams: number
+}
+
+export interface FoodPhoto {
+  url: string
+  thumbnailUrl: string
+  license: string | null
+  licenseUrl: string | null
+  /** `null` for CC0 and public domain. */
+  author: string | null
+  creditUrl: string | null
+}
+
 export interface FoodItem extends Macros {
+  /** The API `key` for ingredients (`egg_whole_hard_boiled`, `u_01jc…`), `recipe_…` for mocked recipes. */
   id: string
   name: string
-  brand: string
   serving: string
-  /** Macros are for `per` of `unit` (e.g. 100 g, 1 egg). */
+  /** 100 for ingredients, 1 for recipes. */
   per: number
   unit: PortionUnit
-  /** Stepper increment when logging an amount. */
+  /** Stepper increment when logging an amount in the item's unit. */
   step: number
-  /** Name of one piece, e.g. 'egg' → "2 eggs". */
-  pieceName?: string
+  /** True for the user's own ingredients and for recipes. */
+  isMine: boolean
+  /** Grams per 100 g. `null` means no data, left out of totals. Absent on recipes. */
+  fiber?: number | null
+  /** `[]` on recipes and on ingredients without portions. */
+  portions: IngredientPortion[]
+  /** In API order; the first is the thumbnail. `[]` on recipes and user ingredients. */
+  photos: FoodPhoto[]
   /** Only on recipes: what the whole batch is made of. */
   recipe?: { servings: number, ingredients: RecipeIngredient[] }
-  /** USD for `per` of `unit` (e.g. 1.1 = $1.10 per 100 g). Absent when unknown (custom foods, recipes). */
+  /** USD per 100 g, from the mock price store. Absent when unpriced. */
   price?: number
-  /** Food group. Set on every catalog item. Absent on custom foods saved without one, and on recipes. */
+  /** Set on every ingredient, absent on recipes. */
   category?: IngredientCategory
 }
 
-/** What the user types when creating a food that isn't in the catalog. */
-export interface NewFoodInput extends Macros {
+/** What the form sends. Macros are per 100 g. */
+export interface NewFoodInput {
   name: string
-  per: number
-  unit: PortionUnit
-  /** USD for `per` of `unit`, rounded to cents. Absent when the user left it blank. */
+  category: IngredientCategory
+  kcal: number
+  p: number
+  c: number
+  f: number
+  fiber: number | null
+  /** `key` is set on portions that already exist, so an edit keeps them. */
+  portions: { key?: string, label: string, grams: number }[]
+  /** USD per 100 g. */
   price?: number
-  /** Absent when the user left the select on "No category". */
-  category?: IngredientCategory
 }
 
-export type FoodSearchTab = 'all' | 'recent' | 'myfoods' | 'verified'
+/** One page of the user's ingredients, and whether another page follows it. */
+export interface FoodPage {
+  items: FoodItem[]
+  hasMore: boolean
+}
 
-/** The My foods page filter: every food, one category, or foods saved without a category. */
-export type MyFoodsFilter = 'all' | 'none' | IngredientCategory
+export type FoodSearchTab = 'all' | 'recent' | 'myfoods'
 
-/** `amount` of `item`, in the item's unit. */
+/** The My foods page filter: every food, or one category. */
+export type MyFoodsFilter = 'all' | IngredientCategory
+
+/** `amount` of `item`: a count of `portion` when set, otherwise in the item's unit. */
 export interface RecipeIngredient {
   item: FoodItem
   amount: number
+  /** A key from `item.portions`. */
+  portion?: string
 }
 
 /** One basket line in the quick log; a recipe carries the ingredients of the portion being logged. */
 export interface FoodLogEntry {
   item: FoodItem
   amount: number
+  portion?: string
   ingredients?: RecipeIngredient[]
 }
 

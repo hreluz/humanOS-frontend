@@ -1,7 +1,7 @@
 export const TOKEN_COOKIE = 'humanos_token'
 
 interface ApiOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: Record<string, unknown>
   query?: Record<string, string | number | string[]>
 }

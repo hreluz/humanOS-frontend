@@ -15,8 +15,8 @@ export const INITIAL_FOOD_LOG: FoodLog = {
   snacks: [{ name: 'Protein bar', kcal: 210, p: 20, c: 22, f: 7 }, { name: 'Almonds, 20g', kcal: 120, p: 4, c: 4, f: 10 }],
 }
 
-/** Food ids logged most recently, newest first. */
-export const INITIAL_RECENT_FOOD_IDS = ['yogurt_plain', 'granola', 'chicken_grilled', 'rice_cooked', 'olive_oil', 'overnight_oats', 'banana']
+/** Seeded recipes Recent starts with, newest first. Logged foods are added as copies in front of them. */
+export const INITIAL_RECENT_RECIPE_IDS = ['overnight_oats', 'my_bowl']
 
 export const INITIAL_RECIPE: RecipeDraft = { name: '', servings: 1, ingredients: [] }
 

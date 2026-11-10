@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test'
-import { THEMES, expectLeftLog, gotoReady, logPage, openQuickLog, setTheme, shot, signIn } from '../helpers'
+import type { Page } from '@playwright/test'
+import { THEMES, expectLeftLog, gotoReady, logPage, openQuickLog, setTheme, shot, signIn, waitForImages } from '../helpers'
+
+const EGG = 'Egg, whole, hard-boiled'
+const BEEF = 'Beef chuck, braised'
+
+/** Searches the catalog on /log and puts the exact match in the basket. */
+async function addFood(page: Page, query: string, name: string) {
+  await logPage(page).getByLabel('Search foods').fill(query)
+  await logPage(page).getByRole('button', { name: `Add ${name}`, exact: true }).click()
+}
 
 test.beforeEach(async ({ context, baseURL }) => {
   await signIn(context, baseURL!)
@@ -11,14 +21,79 @@ for (const theme of THEMES) {
       await setTheme(context, theme, baseURL!)
     })
 
+    test('All needs 3 letters before it searches', async ({ page }) => {
+      await gotoReady(page, '/food')
+      await page.getByRole('link', { name: '+ Log food' }).click()
+      const searches: string[] = []
+      page.on('request', (r) => {
+        if (r.url().includes('/v1/nutrition/ingredients?')) searches.push(r.url())
+      })
+      await expect(logPage(page).getByText('Type at least 3 letters to search.')).toBeVisible()
+      await logPage(page).getByLabel('Search foods').fill('eg')
+      await page.waitForTimeout(400)
+      await expect(logPage(page).getByText('Type at least 3 letters to search.')).toBeVisible()
+      expect(searches).toEqual([])
+      await expect(logPage(page).getByRole('button', { name: 'All' })).toBeVisible()
+      await expect(logPage(page).getByRole('button', { name: 'Recent' })).toBeVisible()
+      await expect(logPage(page).getByRole('button', { name: 'My Foods' })).toBeVisible()
+      await expect(logPage(page).getByRole('button', { name: 'Verified' })).toHaveCount(0)
+    })
+
+    test('egg lists the catalog entry with a thumbnail', async ({ page }, testInfo) => {
+      await gotoReady(page, '/food')
+      await page.getByRole('link', { name: '+ Log food' }).click()
+      const searched = page.waitForRequest(r => r.url().includes('/v1/nutrition/ingredients?search=egg'))
+      await logPage(page).getByLabel('Search foods').fill('egg')
+      const request = await searched
+      expect(request.headers().authorization).toMatch(/^Bearer /)
+      const row = logPage(page).getByRole('button', { name: `Add ${EGG}`, exact: true }).locator('..')
+      await expect(row).toContainText('Eggs · 100 g · 155 kcal')
+      await expect(row.getByRole('button', { name: `Photos of ${EGG}` })).toBeVisible()
+      await waitForImages(row)
+      await shot(page, testInfo, 'log-search', theme)
+    })
+
+    test('an egg starts at 1 large egg, and the unit can change', async ({ page }, testInfo) => {
+      await gotoReady(page, '/')
+      await openQuickLog(page)
+      await addFood(page, 'egg', EGG)
+      const unit = logPage(page).getByLabel(`Unit for ${EGG}`)
+      const amount = logPage(page).getByLabel(`${EGG} amount`)
+      await expect(unit.locator('option')).toHaveText(['g', '1 large egg', '1 cup, chopped'])
+      await expect(unit.locator('option:checked')).toHaveText('1 large egg')
+      await expect(amount).toHaveValue('1')
+      await expect(logPage(page).getByText('78 kcal · 6.3g protein')).toBeVisible()
+
+      await unit.selectOption({ label: 'g' })
+      await expect(amount).toHaveValue('100')
+      await unit.selectOption({ label: '1 cup, chopped' })
+      await expect(amount).toHaveValue('1')
+      await unit.selectOption({ label: '1 large egg' })
+
+      // Beef chuck has no portions: grams only, no picker.
+      await addFood(page, 'beef chuck', BEEF)
+      await expect(logPage(page).getByLabel(`${BEEF} amount`)).toHaveValue('100')
+      await expect(logPage(page).getByLabel(`Unit for ${BEEF}`)).toHaveCount(0)
+      await shot(page, testInfo, 'log-basket-portions', theme)
+    })
+
+    test('2 large eggs log as 100 g with 155 kcal on Today', async ({ page }) => {
+      await gotoReady(page, '/')
+      await openQuickLog(page)
+      await addFood(page, 'egg', EGG)
+      await logPage(page).getByRole('button', { name: `More ${EGG}` }).click()
+      await logPage(page).getByRole('button', { name: 'Log 1 item' }).click()
+      await expectLeftLog(page)
+      const entry = page.getByRole('region', { name: 'Logged today' }).getByRole('listitem').filter({ hasText: EGG }).first()
+      await expect(entry).toContainText('2 × 1 large egg (100 g) · 155 kcal')
+    })
+
     test('food with goal impact', async ({ page }, testInfo) => {
       await gotoReady(page, '/food')
       await page.getByRole('link', { name: '+ Log food' }).click()
-      const dialog = logPage(page)
-      await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
-      await dialog.getByRole('button', { name: 'Add Egg, boiled' }).click()
-      await dialog.getByRole('button', { name: 'More Egg, boiled' }).click()
-      await expect(dialog.getByText('Moves your goals')).toBeVisible()
+      await addFood(page, 'egg', EGG)
+      await addFood(page, 'beef chuck', BEEF)
+      await expect(logPage(page).getByText('Moves your goals')).toBeVisible()
       await shot(page, testInfo, 'quick-log-food', theme)
     })
 
@@ -46,14 +121,15 @@ for (const theme of THEMES) {
       await gotoReady(page, '/food')
       await page.getByRole('link', { name: '+ Log food' }).click()
       const dialog = logPage(page)
-      await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
-      await dialog.getByLabel('Chicken breast, boiled amount').fill('96')
-      await expect(dialog.getByText('144 kcal · 28.8g protein')).toBeVisible()
+      await addFood(page, 'beef chuck', BEEF)
+      await dialog.getByLabel(`${BEEF} amount`).fill('96')
+      // 309 kcal and 30.2 g protein per 100 g.
+      await expect(dialog.getByText('297 kcal · 29g protein')).toBeVisible()
       await expect(dialog.getByText('118g → 147g of 170g')).toBeVisible()
       await shot(page, testInfo, 'quick-log-typed-amount', theme)
       await dialog.getByRole('button', { name: 'Log 1 item' }).click()
       await expectLeftLog(page)
-      await expect(page.getByText('Chicken breast, boiled, 96 g')).toBeVisible()
+      await expect(page.getByText(`${BEEF}, 96 g`)).toBeVisible()
     })
 
     test('typed steps', async ({ page }) => {
@@ -107,11 +183,10 @@ for (const theme of THEMES) {
     test('home timeline after logging', async ({ page }, testInfo) => {
       await gotoReady(page, '/')
       await openQuickLog(page)
-      const dialog = logPage(page)
-      await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
-      await dialog.getByRole('button', { name: 'Log 1 item' }).click()
+      await addFood(page, 'beef chuck', BEEF)
+      await logPage(page).getByRole('button', { name: 'Log 1 item' }).click()
       await expectLeftLog(page)
-      await expect(page.getByRole('region', { name: 'Logged today' }).getByText('Chicken breast, boiled')).toBeVisible()
+      await expect(page.getByRole('region', { name: 'Logged today' }).getByText(BEEF)).toBeVisible()
       await shot(page, testInfo, 'home-after-log', theme)
     })
 
@@ -121,7 +196,7 @@ for (const theme of THEMES) {
       const dialog = logPage(page)
       await expect(dialog.getByText('Right now')).toBeVisible()
       await dialog.getByRole('button', { name: /^Today, / }).click()
-      await dialog.getByRole('button', { name: 'Add Banana' }).click()
+      await addFood(page, 'banana', 'Banana')
       await dialog.getByLabel('Time').fill('00:00')
       await dialog.getByLabel('Time').blur()
       await expect(dialog.getByRole('button', { name: 'Today, 12:00 AM' })).toBeVisible()
@@ -175,7 +250,7 @@ for (const theme of THEMES) {
       await gotoReady(page, '/food')
       await page.getByRole('link', { name: '+ Log food' }).click()
       const dialog = logPage(page)
-      await dialog.getByRole('button', { name: 'Add Banana' }).click()
+      await addFood(page, 'banana', 'Banana')
       await dialog.getByRole('button', { name: /^Today, / }).click()
       await dialog.getByRole('radio', { name: 'Yesterday' }).click()
       const time = dialog.getByLabel('Time')

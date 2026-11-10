@@ -1,6 +1,6 @@
 import { basename, join, sep } from 'node:path'
-import { type BrowserContext, type Page, type TestInfo, expect } from '@playwright/test'
-import { type TestUser, sharedUser } from './api'
+import { type BrowserContext, type Locator, type Page, type TestInfo, expect } from '@playwright/test'
+import { METRIC_PROFILE, type TestUser, registerUser, saveProfile, sharedUser } from './api'
 
 export type Theme = 'light' | 'dark'
 export const THEMES: Theme[] = ['light', 'dark']
@@ -20,6 +20,23 @@ export async function setTheme(context: BrowserContext, theme: Theme, baseURL: s
 export async function signIn(context: BrowserContext, baseURL: string, user: TestUser = sharedUser()) {
   await context.addCookies([cookie('humanos_token', encodeURIComponent(user.token), baseURL)])
   await setGoal(context, baseURL, user)
+}
+
+/**
+ * Registers a user with a profile and signs this browser in as them. For tests that write to the API (e.g. create
+ * ingredients), so the shared user doesn't collect data across runs.
+ */
+export async function signInAsNewUser(context: BrowserContext, baseURL: string, tag: string): Promise<TestUser> {
+  const user = await registerUser(tag, 'Alex Morgan')
+  await saveProfile(user, METRIC_PROFILE)
+  await signIn(context, baseURL, user)
+  return user
+}
+
+/** Types a search on the Quick log page and waits for the results to load. */
+export async function searchLog(page: Page, query: string) {
+  await logPage(page).getByLabel('Search foods').fill(query)
+  await expect(logPage(page).getByText('Searching…')).toBeHidden()
 }
 
 /** Picks the goal for `user` on this browser (the backend has none), so a user with an API profile lands on home. */
@@ -42,6 +59,15 @@ export async function shot(page: Page, testInfo: TestInfo, screen: string, theme
   const feature = testInfo.file.split(sep).includes('features') ? basename(testInfo.file, '.spec.ts') : null
   const group = feature ? join('feature', feature) : 'e2e'
   await page.screenshot({ path: join(dir, group, `${testInfo.project.name}-${screen}-${theme}.png`), fullPage: true })
+}
+
+/** Waits until every image inside `scope` has loaded (Commons photos load lazily, after a redirect), so shots show them. */
+export async function waitForImages(scope: Locator) {
+  const imgs = scope.locator('img')
+  for (let i = 0; i < await imgs.count(); i++) {
+    await imgs.nth(i).scrollIntoViewIfNeeded()
+    await expect.poll(() => imgs.nth(i).evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0), { timeout: 15_000 }).toBe(true)
+  }
 }
 
 /** Opens the quick log page from the sidebar's Log link (desktop) or the tab bar's + link (mobile). */

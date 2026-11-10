@@ -8,7 +8,15 @@ const { navigateToMock } = vi.hoisted(() => ({
 }))
 mockNuxtImport('navigateTo', () => navigateToMock)
 
-const banana: FoodItem = { id: 'banana_t', name: 'Banana', brand: 'Generic', serving: '1 banana', per: 1, unit: 'piece', pieceName: 'banana', step: 1, kcal: 105, p: 1.3, c: 27, f: 0.4 }
+const ingredient = (over: Partial<FoodItem>): FoodItem => ({
+  id: 'x', name: 'x', serving: '100 g', per: 100, unit: 'g', step: 10, isMine: false, kcal: 0, p: 0, c: 0, f: 0, portions: [], photos: [], ...over,
+})
+const banana = ingredient({ id: 'banana', name: 'Banana', kcal: 97, p: 0.74, c: 23, f: 0.29, portions: [{ key: 'medium', label: '1 medium', grams: 118 }] })
+const egg = ingredient({
+  id: 'egg_whole_hard_boiled', name: 'Egg, whole, hard-boiled', kcal: 155, p: 12.6, c: 1.12, f: 10.6,
+  portions: [{ key: 'large', label: '1 large egg', grams: 50 }, { key: 'cup_chopped', label: '1 cup, chopped', grams: 136 }],
+})
+const beef = ingredient({ id: 'beef_chuck_braised', name: 'Beef chuck, braised', kcal: 309, p: 30.2, f: 19.9 })
 
 /** Sets `?tab=` on the current route, the way a link or a reload would. */
 async function withTab(tab?: string) {
@@ -89,5 +97,46 @@ describe('useQuickLog submit', () => {
     expect(draftWhenLeaving).toBe(false)
     expect(basket.value).toEqual([])
     back.mockRestore()
+  })
+})
+
+describe('useQuickLog units', () => {
+  it('starts an item with portions at 1 × the first one, worth its grams', async () => {
+    const { toggleFood, basket } = await loadedQuickLog()
+    toggleFood(egg)
+    expect(basket.value[0]).toMatchObject({ amount: 1, portion: 'large' })
+    expect(entryMacros(basket.value[0]!).kcal).toBe(78)
+  })
+
+  it('starts an item without portions at 100 g', async () => {
+    const { toggleFood, basket } = await loadedQuickLog()
+    toggleFood(beef)
+    expect(basket.value[0]).toMatchObject({ amount: 100 })
+    expect(basket.value[0]!.portion).toBeUndefined()
+  })
+
+  it('sets 1 or 100 when the unit changes, and the macros follow the portion', async () => {
+    const { toggleFood, basket, setUnit, stepFood } = await loadedQuickLog()
+    toggleFood(egg)
+    setUnit(egg.id, null)
+    expect(basket.value[0]).toMatchObject({ amount: 100 })
+    expect(entryMacros(basket.value[0]!).kcal).toBe(155)
+    setUnit(egg.id, 'large')
+    stepFood(egg.id, 1)
+    expect(basket.value[0]).toMatchObject({ amount: 2, portion: 'large' })
+    expect(entryMacros(basket.value[0]!).kcal).toBe(155)
+    setUnit(egg.id, 'cup_chopped')
+    expect(basket.value[0]).toMatchObject({ amount: 1, portion: 'cup_chopped' })
+  })
+
+  it('logs the entry with its portion text', async () => {
+    const { toggleFood, setFoodAmount, submit, meal } = await loadedQuickLog()
+    const { log } = useFoodLog()
+    await vi.waitUntil(() => log.value)
+    toggleFood(egg)
+    setFoodAmount(egg.id, 2)
+    const mealKey = meal.value
+    await submit()
+    expect(log.value![mealKey].at(-1)).toMatchObject({ name: 'Egg, whole, hard-boiled', portion: '2 × 1 large egg (100 g)', kcal: 155 })
   })
 })

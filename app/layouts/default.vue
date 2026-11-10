@@ -26,6 +26,7 @@ watch(() => route.fullPath, close)
     <ModalProfile v-else-if="modal === 'editProfile'" />
     <ModalWeighIn v-else-if="modal === 'weighIn'" />
     <ModalExercisePhotos v-else-if="modal === 'exercisePhotos'" />
+    <ModalFoodPhotos v-else-if="modal === 'foodPhotos'" />
 
     <AppMobileTabBar v-if="!isOpen" :active-tab="activeTab" />
   </div>
