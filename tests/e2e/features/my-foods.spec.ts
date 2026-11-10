@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { THEMES, gotoReady, openQuickLog, setTheme, shot, signIn } from '../helpers'
+import { THEMES, gotoReady, logPage, openQuickLog, setTheme, shot, signIn } from '../helpers'
 
 // Mock data lives in the browser's copy of the service, so every change is followed by client-side
 // navigation (clicks), never page.goto, which would reload the seeds.
@@ -74,7 +74,7 @@ for (const theme of THEMES) {
       await expect(row(page, 'Salsa verde')).toContainText('100 g · Vegetables · 50 kcal')
 
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('button', { name: 'My Foods' }).click()
       await expect(dialog.getByText('My food · 100 g · 50 kcal')).toBeVisible()
     })

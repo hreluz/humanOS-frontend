@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { THEMES, addIngredients, gotoReady, openQuickLog, setTheme, shot, signIn } from './helpers'
+import { THEMES, addIngredients, expectLeftLog, gotoReady, logPage, openQuickLog, setTheme, shot, signIn } from './helpers'
 
 const ROUTES: { path: string, name: string, ready: string | RegExp }[] = [
   { path: '/', name: 'home', ready: /more protein/ },
@@ -12,6 +12,7 @@ const ROUTES: { path: string, name: string, ready: string | RegExp }[] = [
   { path: '/food/recipes/new', name: 'new-recipe', ready: 'Ingredients' },
   { path: '/weekly-review', name: 'weekly-review', ready: 'Weight trend' },
   { path: '/profile', name: 'profile', ready: 'About you' },
+  { path: '/log', name: 'log', ready: 'Tap + on everything you ate' },
 ]
 
 const MODALS: { name: string, from: string, trigger: string | RegExp, ready: string }[] = [
@@ -68,10 +69,10 @@ test.describe('interactions', () => {
   test('logging food updates calorie totals', async ({ page }) => {
     await gotoReady(page, '/food')
     await expect(page.getByTestId('kcal-total')).toHaveText('1,360 / 2,600')
-    await page.getByRole('button', { name: '+ Log food' }).click()
+    await page.getByRole('link', { name: '+ Log food' }).click()
     await page.getByRole('button', { name: 'Add Granola' }).click()
     await page.getByRole('button', { name: 'Log 1 item' }).click()
-    await expect(page.getByRole('dialog')).toBeHidden()
+    await expectLeftLog(page)
     await expect(page.getByTestId('kcal-total')).toHaveText('1,475 / 2,600')
 
     await page.getByRole('link', { name: 'Home' }).first().click()
@@ -83,12 +84,12 @@ test.describe('interactions', () => {
     const protein = page.getByText('Eat 170g protein daily').locator('..')
     await expect(protein).toContainText('118g today')
     await openQuickLog(page)
-    const dialog = page.getByRole('dialog')
+    const dialog = logPage(page)
     await dialog.getByLabel('Search foods').fill('boiled')
     await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
     await expect(dialog.getByText('118g → 148g of 170g')).toBeVisible()
     await dialog.getByRole('button', { name: 'Log 1 item' }).click()
-    await expect(dialog).toBeHidden()
+    await expectLeftLog(page)
     await expect(protein).toContainText('148g today')
 
     await page.getByRole('link', { name: 'Home' }).first().click()
@@ -100,13 +101,13 @@ test.describe('interactions', () => {
     const active = page.getByText('Burn 500 active kcal daily').locator('..')
     await expect(active).toContainText('341 kcal today')
     await openQuickLog(page)
-    const dialog = page.getByRole('dialog')
+    const dialog = logPage(page)
     await dialog.getByRole('radio', { name: 'Activity' }).click()
     await dialog.getByLabel('Search activities').fill('cyc')
     await dialog.getByRole('radio', { name: /Cycling/ }).click()
     await expect(dialog.getByLabel('Cycling amount')).toHaveValue('15')
     await dialog.getByRole('button', { name: 'Log cycling' }).click()
-    await expect(dialog).toBeHidden()
+    await expectLeftLog(page)
     await expect(active).not.toContainText('341 kcal today')
 
     await page.getByRole('link', { name: 'Train' }).first().click()
@@ -115,8 +116,8 @@ test.describe('interactions', () => {
 
   test('food search filters by query and tab', async ({ page }) => {
     await gotoReady(page, '/food')
-    await page.getByRole('button', { name: '+ Log food' }).click()
-    const dialog = page.getByRole('dialog')
+    await page.getByRole('link', { name: '+ Log food' }).click()
+    const dialog = logPage(page)
     await dialog.getByLabel('Search foods').fill('chicken breast')
     await expect(dialog.getByText('Greek yogurt, plain')).toBeHidden()
     await expect(dialog.getByText('Chicken breast, grilled')).toBeVisible()
@@ -136,9 +137,9 @@ test.describe('interactions', () => {
     await page.getByRole('button', { name: 'Save recipe' }).click()
     await expect(page).toHaveURL(/\/food$/)
 
-    await page.getByRole('button', { name: '+ Log food' }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
-    await expect(page.getByRole('dialog').getByText('Chicken & Rice Bowl', { exact: true })).toBeVisible()
+    await page.getByRole('link', { name: '+ Log food' }).click()
+    await logPage(page).getByRole('button', { name: 'My Foods' }).click()
+    await expect(logPage(page).getByText('Chicken & Rice Bowl', { exact: true })).toBeVisible()
   })
 
   test('recipe can\'t be saved without a name or ingredients', async ({ page }) => {
@@ -212,9 +213,9 @@ test.describe('interactions', () => {
     await expect(page.getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
 
     await page.getByRole('link', { name: '← Back to food' }).click()
-    await page.getByRole('button', { name: '+ Log food' }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
-    await expect(page.getByRole('dialog').getByText('tahini', { exact: true })).toBeVisible()
+    await page.getByRole('link', { name: '+ Log food' }).click()
+    await logPage(page).getByRole('button', { name: 'My Foods' }).click()
+    await expect(logPage(page).getByText('tahini', { exact: true })).toBeVisible()
   })
 
   test('ingredient search: helper text and Escape steps back', async ({ page }) => {
@@ -254,9 +255,9 @@ test.describe('interactions', () => {
     await expect(page.getByText('My food · 15 g · 90 kcal · 0g protein · 0g carbs')).toBeVisible()
     await page.getByRole('link', { name: '← Back to food' }).click()
 
-    await page.getByRole('button', { name: '+ Log food' }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'My Foods' }).click()
-    await expect(page.getByRole('dialog').getByText('Tahini', { exact: true })).toBeVisible()
+    await page.getByRole('link', { name: '+ Log food' }).click()
+    await logPage(page).getByRole('button', { name: 'My Foods' }).click()
+    await expect(logPage(page).getByText('Tahini', { exact: true })).toBeVisible()
   })
 
   test('grocery items toggle', async ({ page }) => {

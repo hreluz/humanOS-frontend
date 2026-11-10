@@ -1,5 +1,5 @@
 import { basename, join, sep } from 'node:path'
-import type { BrowserContext, Page, TestInfo } from '@playwright/test'
+import { type BrowserContext, type Page, type TestInfo, expect } from '@playwright/test'
 import { type TestUser, sharedUser } from './api'
 
 export type Theme = 'light' | 'dark'
@@ -44,9 +44,20 @@ export async function shot(page: Page, testInfo: TestInfo, screen: string, theme
   await page.screenshot({ path: join(dir, group, `${testInfo.project.name}-${screen}-${theme}.png`), fullPage: true })
 }
 
-/** Opens the quick log from the sidebar (desktop) or the tab bar's + button (mobile). */
+/** Opens the quick log page from the sidebar's Log link (desktop) or the tab bar's + link (mobile). */
 export async function openQuickLog(page: Page) {
-  await page.getByRole('button', { name: /^(Log|Log food, activity or water)$/ }).filter({ visible: true }).click()
+  await page.getByRole('link', { name: /^(Log|Log food, activity or water)$/ }).filter({ visible: true }).click()
+  await expect(page).toHaveURL(/\/log(\?|$)/)
+}
+
+/** The quick log page's content. */
+export function logPage(page: Page) {
+  return page.getByRole('main')
+}
+
+/** Waits until the quick log page has been left, e.g. after a successful log. */
+export async function expectLeftLog(page: Page) {
+  await expect(page).not.toHaveURL(/\/log(\?|$)/)
 }
 
 /** Adds catalog ingredients on the new recipe page by searching each name and picking its exact match. */

@@ -22,20 +22,19 @@ const KCAL_STEP = 10
 const FALLBACK_KG = 75
 const NOW_TICK_MS = 30_000
 
-/** Opens the quick log on a tab; usable anywhere without loading the sheet's data. */
-export function useQuickLogLauncher() {
-  const tab = useState<QuickLogTab>('quick-log-tab', () => 'food')
-  const { open } = useModal()
-  function openQuickLog(to?: QuickLogTab) {
-    if (to) tab.value = to
-    open('quickLog')
-  }
-  return { tab, openQuickLog }
+/** The tab named by `?tab=`; anything missing or unknown reads as food. */
+export function parseQuickLogTab(value: unknown): QuickLogTab {
+  return QUICK_LOG_TABS.find(t => t.key === value)?.key ?? 'food'
 }
 
 export function useQuickLog() {
-  const { tab } = useQuickLogLauncher()
-  const { close } = useModal()
+  const route = useRoute()
+  const router = useRouter()
+  // The tab lives in the URL so it survives reloads and links; switching replaces it, so Back leaves the page instead of stepping through tabs.
+  const tab = computed<QuickLogTab>({
+    get: () => parseQuickLogTab(route.query.tab),
+    set: (to: QuickLogTab) => { navigateTo({ query: { tab: to } }, { replace: true }) },
+  })
   const { profile } = useAuth()
   const { addFoods } = useFoodLog()
   const { logActivity, logWater } = useTodayActivity()
@@ -240,6 +239,15 @@ export function useQuickLog() {
     return `Log ${waterMl.value} ml water`
   })
 
+  /** Something picked that isn't logged yet; leaving would lose it. Water always has an amount and the time always has a value, so neither counts. */
+  const hasApproved = computed(() => basket.value.length > 0 || activity.value !== null)
+
+  /** Back to where the user came from, or Home when /log was opened directly. */
+  function leave() {
+    if (import.meta.client && window.history.state?.back) router.back()
+    else navigateTo('/')
+  }
+
   async function submit() {
     if (!canSubmit.value) return
     saving.value = true
@@ -248,7 +256,10 @@ export function useQuickLog() {
       if (tab.value === 'food') await addFoods(basket.value, meal.value, when)
       else if (tab.value === 'activity') await logActivity(activityKey.value!, activityAmount.value, kg.value, activityKcal.value, when)
       else await logWater(waterMl.value, when)
-      close()
+      // Logged: nothing is left to lose, so leaving doesn't ask.
+      basket.value = []
+      activityKey.value = null
+      leave()
     }
     finally {
       saving.value = false
@@ -263,6 +274,6 @@ export function useQuickLog() {
     activityQuery, activityResults, activity, activityAmount, activityKcal, selectActivity, stepActivity,
     estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,
     waterMl, stepWater,
-    impact, canSubmit, submitLabel, submit,
+    impact, canSubmit, submitLabel, submit, hasApproved, leave,
   }
 }

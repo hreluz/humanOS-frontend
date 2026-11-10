@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { THEMES, gotoReady, openQuickLog, setTheme, shot, signIn } from '../helpers'
+import { THEMES, expectLeftLog, gotoReady, logPage, openQuickLog, setTheme, shot, signIn } from '../helpers'
 
 test.beforeEach(async ({ context, baseURL }) => {
   await signIn(context, baseURL!)
@@ -13,8 +13,8 @@ for (const theme of THEMES) {
 
     test('food with goal impact', async ({ page }, testInfo) => {
       await gotoReady(page, '/food')
-      await page.getByRole('button', { name: '+ Log food' }).click()
-      const dialog = page.getByRole('dialog')
+      await page.getByRole('link', { name: '+ Log food' }).click()
+      const dialog = logPage(page)
       await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
       await dialog.getByRole('button', { name: 'Add Egg, boiled' }).click()
       await dialog.getByRole('button', { name: 'More Egg, boiled' }).click()
@@ -25,7 +25,7 @@ for (const theme of THEMES) {
     test('activity with goal impact', async ({ page }, testInfo) => {
       await gotoReady(page, '/goals')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('radio', { name: 'Activity' }).click()
       await dialog.getByRole('radio', { name: /Cycling/ }).click()
       await expect(dialog.getByText('Moves your goals')).toBeVisible()
@@ -35,7 +35,7 @@ for (const theme of THEMES) {
     test('water', async ({ page }, testInfo) => {
       await gotoReady(page, '/')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('radio', { name: 'Water' }).click()
       await dialog.getByRole('radio', { name: /500 ml/ }).click()
       await expect(dialog.getByText('Moves your goals')).toBeVisible()
@@ -44,22 +44,22 @@ for (const theme of THEMES) {
 
     test('typed food amount', async ({ page }, testInfo) => {
       await gotoReady(page, '/food')
-      await page.getByRole('button', { name: '+ Log food' }).click()
-      const dialog = page.getByRole('dialog')
+      await page.getByRole('link', { name: '+ Log food' }).click()
+      const dialog = logPage(page)
       await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
       await dialog.getByLabel('Chicken breast, boiled amount').fill('96')
       await expect(dialog.getByText('144 kcal · 28.8g protein')).toBeVisible()
       await expect(dialog.getByText('118g → 147g of 170g')).toBeVisible()
       await shot(page, testInfo, 'quick-log-typed-amount', theme)
       await dialog.getByRole('button', { name: 'Log 1 item' }).click()
-      await expect(dialog).toBeHidden()
+      await expectLeftLog(page)
       await expect(page.getByText('Chicken breast, boiled, 96 g')).toBeVisible()
     })
 
     test('typed steps', async ({ page }) => {
       await gotoReady(page, '/goals')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('radio', { name: 'Activity' }).click()
       await dialog.getByRole('radio', { name: /Walking/ }).click()
       const steps = dialog.getByLabel('Walking amount')
@@ -71,14 +71,14 @@ for (const theme of THEMES) {
       await expect(steps).toHaveValue('1501')
       await steps.fill('1001')
       await dialog.getByRole('button', { name: 'Log walking' }).click()
-      await expect(dialog).toBeHidden()
+      await expectLeftLog(page)
       await expect(page.getByText('Walk 10,000 steps').locator('..')).toContainText('7,201 today')
     })
 
     test('edited activity calories', async ({ page }, testInfo) => {
       await gotoReady(page, '/goals')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('radio', { name: 'Activity' }).click()
       await dialog.getByRole('radio', { name: /Walking/ }).click()
       const kcal = dialog.getByLabel('Calories burned amount')
@@ -99,7 +99,7 @@ for (const theme of THEMES) {
       await kcal.fill('70')
       await kcal.blur()
       await dialog.getByRole('button', { name: 'Log walking' }).click()
-      await expect(dialog).toBeHidden()
+      await expectLeftLog(page)
       await page.getByRole('link', { name: 'Train' }).first().click()
       await expect(page.getByText(/1,000 steps · 70 kcal · logged at/)).toBeVisible()
     })
@@ -107,10 +107,10 @@ for (const theme of THEMES) {
     test('home timeline after logging', async ({ page }, testInfo) => {
       await gotoReady(page, '/')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('button', { name: 'Add Chicken breast, boiled' }).click()
       await dialog.getByRole('button', { name: 'Log 1 item' }).click()
-      await expect(dialog).toBeHidden()
+      await expectLeftLog(page)
       await expect(page.getByRole('region', { name: 'Logged today' }).getByText('Chicken breast, boiled')).toBeVisible()
       await shot(page, testInfo, 'home-after-log', theme)
     })
@@ -118,7 +118,7 @@ for (const theme of THEMES) {
     test('logged earlier today', async ({ page }, testInfo) => {
       await gotoReady(page, '/')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await expect(dialog.getByText('Right now')).toBeVisible()
       await dialog.getByRole('button', { name: /^Today, / }).click()
       await dialog.getByRole('button', { name: 'Add Banana' }).click()
@@ -129,14 +129,14 @@ for (const theme of THEMES) {
       await expect(dialog.getByText('Moves your goals')).toBeVisible()
       await shot(page, testInfo, 'quick-log-time-today', theme)
       await dialog.getByRole('button', { name: 'Log 1 item' }).click()
-      await expect(dialog).toBeHidden()
+      await expectLeftLog(page)
       await expect(page.getByRole('region', { name: 'Logged today' }).getByRole('listitem').filter({ hasText: 'Banana' }).first()).toContainText('12:00 AM')
     })
 
     test('logged to yesterday', async ({ page }, testInfo) => {
       await gotoReady(page, '/')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('radio', { name: 'Water' }).click()
       await dialog.getByLabel('Water amount').fill('333')
       await dialog.getByRole('button', { name: /^Today, / }).click()
@@ -153,7 +153,7 @@ for (const theme of THEMES) {
       await expect(dialog.getByRole('button', { name: /^Today, / })).toBeFocused()
       await dialog.getByRole('radio', { name: 'Yesterday' }).click()
       await dialog.getByRole('button', { name: 'Log 333 ml water' }).click()
-      await expect(dialog).toBeHidden()
+      await expectLeftLog(page)
       await expect(page.getByRole('region', { name: 'Logged today' })).not.toContainText('333 ml')
     })
 
@@ -161,7 +161,7 @@ for (const theme of THEMES) {
       test.skip(new Date().getHours() === 23 && new Date().getMinutes() >= 58, 'no later time left today')
       await gotoReady(page, '/')
       await openQuickLog(page)
-      const dialog = page.getByRole('dialog')
+      const dialog = logPage(page)
       await dialog.getByRole('button', { name: /^Today, / }).click()
       const time = dialog.getByLabel('Time')
       await expect(dialog.getByText("Can't be later than now")).toBeHidden()
@@ -173,8 +173,8 @@ for (const theme of THEMES) {
 
     test('meal follows the time', async ({ page }) => {
       await gotoReady(page, '/food')
-      await page.getByRole('button', { name: '+ Log food' }).click()
-      const dialog = page.getByRole('dialog')
+      await page.getByRole('link', { name: '+ Log food' }).click()
+      const dialog = logPage(page)
       await dialog.getByRole('button', { name: 'Add Banana' }).click()
       await dialog.getByRole('button', { name: /^Today, / }).click()
       await dialog.getByRole('radio', { name: 'Yesterday' }).click()

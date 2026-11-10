@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{ activeTab?: string }>()
 const { open } = useModal()
-const { openQuickLog } = useQuickLogLauncher()
 </script>
 
 <template>
@@ -11,15 +10,15 @@ const { openQuickLog } = useQuickLogLauncher()
       <span class="text-[16px] font-bold tracking-tight" :class="inkCls">HumanOS</span>
     </div>
 
-    <button
-      type="button"
+    <NuxtLink
+      to="/log"
       class="mb-5 h-10 rounded-[10px] bg-ink text-white dark:bg-white dark:text-black text-[14px] font-semibold flex items-center justify-center gap-2"
       :class="focusRingCls"
-      @click="openQuickLog()"
+      :aria-current="props.activeTab === 'log' ? 'page' : undefined"
     >
       <AppIcon :path="ICONS.plus" class="w-4 h-4" />
       Log
-    </button>
+    </NuxtLink>
 
     <div class="flex flex-col gap-0.5">
       <NuxtLink

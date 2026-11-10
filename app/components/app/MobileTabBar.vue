@@ -1,6 +1,5 @@
 <script setup lang="ts">
 defineProps<{ activeTab?: string }>()
-const { openQuickLog } = useQuickLogLauncher()
 
 // The log button sits in the middle of the bar, between the two halves of the tabs.
 const half = Math.ceil(NAV_DEFS.length / 2)
@@ -11,15 +10,15 @@ const sides = [NAV_DEFS.slice(0, half), NAV_DEFS.slice(half)]
   <nav class="md:hidden fixed bottom-0 inset-x-0 border-t flex items-stretch justify-around z-30" :class="[cardCls, dividerCls]" style="padding-bottom: env(safe-area-inset-bottom)">
     <template v-for="(navs, side) in sides" :key="side">
       <div v-if="side === 1" class="flex-1 flex justify-center">
-        <button
-          type="button"
+        <NuxtLink
+          to="/log"
           aria-label="Log food, activity or water"
           class="-mt-4 w-12 h-12 rounded-full bg-ink text-white dark:bg-white dark:text-black flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-surface-dark"
           :class="focusRingCls"
-          @click="openQuickLog()"
+          :aria-current="activeTab === 'log' ? 'page' : undefined"
         >
           <AppIcon :path="ICONS.plus" class="w-5 h-5" />
-        </button>
+        </NuxtLink>
       </div>
       <NuxtLink
         v-for="nav in navs"

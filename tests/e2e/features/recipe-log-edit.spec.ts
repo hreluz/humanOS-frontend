@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { THEMES, gotoReady, setTheme, shot, signIn } from '../helpers'
+import { THEMES, expectLeftLog, gotoReady, logPage, setTheme, shot, signIn } from '../helpers'
 
 test.beforeEach(async ({ context, baseURL }) => {
   await signIn(context, baseURL!)
@@ -13,8 +13,8 @@ for (const theme of THEMES) {
 
     test('edit ingredients while logging a recipe', async ({ page }, testInfo) => {
       await gotoReady(page, '/food')
-      await page.getByRole('button', { name: '+ Log food' }).click()
-      const dialog = page.getByRole('dialog')
+      await page.getByRole('link', { name: '+ Log food' }).click()
+      const dialog = logPage(page)
       await dialog.getByLabel('Search foods').fill('overnight oats')
       await dialog.getByRole('button', { name: 'Add Overnight oats' }).click()
       await expect(dialog.getByText(/^275 kcal · /)).toBeVisible()
@@ -56,11 +56,11 @@ for (const theme of THEMES) {
       await expect(dialog.getByRole('button', { name: 'Log 1 item' })).toBeVisible()
 
       await dialog.getByRole('button', { name: 'Log 1 item' }).click()
-      await expect(dialog).toBeHidden()
+      await expectLeftLog(page)
       await expect(page.getByText(/Overnight oats/).first()).toBeVisible()
 
       // The saved recipe is untouched: adding it again starts from the recipe's amounts.
-      await page.getByRole('button', { name: '+ Log food' }).click()
+      await page.getByRole('link', { name: '+ Log food' }).click()
       await dialog.getByLabel('Search foods').fill('overnight oats')
       await dialog.getByRole('button', { name: 'Add Overnight oats' }).click()
       await dialog.getByRole('button', { name: 'Edit ingredients of Overnight oats' }).click()
@@ -79,8 +79,8 @@ for (const theme of THEMES) {
       await page.getByRole('button', { name: 'Save recipe' }).filter({ visible: true }).click()
       await expect(page).toHaveURL(/\/food$/)
 
-      await page.getByRole('button', { name: '+ Log food' }).click()
-      const dialog = page.getByRole('dialog')
+      await page.getByRole('link', { name: '+ Log food' }).click()
+      const dialog = logPage(page)
       await dialog.getByLabel('Search foods').fill('big oats')
       await dialog.getByRole('button', { name: 'Add Big oats' }).click()
       await expect(dialog.getByText(/^225 kcal · /)).toBeVisible()

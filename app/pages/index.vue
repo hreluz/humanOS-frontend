@@ -2,7 +2,6 @@
 definePageMeta({ tab: 'home' })
 
 const { open } = useModal()
-const { openQuickLog } = useQuickLogLauncher()
 const { entries: timeline } = useTodayTimeline()
 const { firstName } = useAuth()
 const greeting = useGreeting()
@@ -47,7 +46,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <AppProgressBar :pct="steps.pct" accent="green" />
       </div>
 
-      <button v-if="summary" type="button" class="rounded-2xl p-[22px] shadow-xs text-left" :class="cardCls" @click="openQuickLog('food')">
+      <NuxtLink v-if="summary" to="/log?tab=food" class="rounded-2xl p-[22px] shadow-xs text-left" :class="cardCls">
         <div class="flex gap-3.5 items-center mb-3.5">
           <div class="w-11 h-11 rounded-[13px] flex items-center justify-center shrink-0" :class="ACCENT.coral.iconBg">
             <svg class="w-5 h-5" :class="ACCENT.coral.icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -61,7 +60,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           </div>
         </div>
         <AppProgressBar :pct="summary.kcal.pct" accent="coral" />
-      </button>
+      </NuxtLink>
     </div>
 
     <div class="flex flex-col gap-4">
@@ -78,7 +77,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <section class="rounded-2xl p-5 shadow-xs" :class="cardCls" aria-labelledby="today-log">
         <div class="flex justify-between items-center mb-3">
           <h2 id="today-log" class="text-[15px] font-bold" :class="inkCls">Logged today</h2>
-          <button type="button" class="text-[13px] font-semibold" :class="[linkBlueCls, focusRingCls]" @click="openQuickLog()">+ Log</button>
+          <NuxtLink to="/log" class="text-[13px] font-semibold" :class="[linkBlueCls, focusRingCls]">+ Log</NuxtLink>
         </div>
         <ol v-if="timeline.length" class="flex flex-col">
           <li v-for="e in timeline" :key="e.id" class="flex gap-3 items-center py-2.5 border-t first:border-t-0 first:pt-0" :class="dividerCls">
