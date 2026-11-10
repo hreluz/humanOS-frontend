@@ -21,7 +21,7 @@ for (const theme of THEMES) {
     // A filled-in recipe, so the shots show a realistic page rather than the empty start.
     const fillRecipe = async (page: Page) => {
       await page.getByLabel('Recipe name').fill('Chicken & Rice Bowl')
-      await addIngredients(page, 'Chicken breast, grilled', 'Jasmine rice, cooked', 'Olive oil')
+      await addIngredients(page, 'Chicken breast, roasted', 'White rice, long-grain, cooked', 'Olive oil')
       await page.getByLabel('Add an ingredient').blur()
     }
 
@@ -40,16 +40,16 @@ for (const theme of THEMES) {
     test('after picking an ingredient', async ({ page }, testInfo) => {
       await fillRecipe(page)
       await page.getByLabel('Add an ingredient').fill('whey')
-      await page.getByRole('button', { name: /^Whey protein/ }).click()
+      await page.getByRole('button', { name: /^Whey protein powder/ }).click()
       await expect(page.getByText('4 items')).toBeVisible()
       await expect(page.getByRole('button', { name: 'Save recipe' })).toBeVisible()
       await shot(page, testInfo, 'recipe-mobile-picked', theme)
     })
 
     test('create form', async ({ page }, testInfo) => {
-      await page.getByLabel('Add an ingredient').fill('Tahini')
-      await page.getByRole('button', { name: '+ Create “Tahini”' }).click()
-      await expect(page.getByLabel('Calories (kcal)')).toBeFocused()
+      await page.getByLabel('Add an ingredient').fill('Skyr')
+      await page.getByRole('button', { name: '+ Create “Skyr”' }).click()
+      await expect(page.getByLabel('Category')).toBeFocused()
       await shot(page, testInfo, 'recipe-mobile-create', theme)
     })
 

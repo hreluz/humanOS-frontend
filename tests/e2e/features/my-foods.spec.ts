@@ -1,9 +1,23 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { THEMES, gotoReady, openQuickLog, setTheme, shot, signIn } from '../helpers'
+import { type IngredientBody, type TestUser, createIngredient } from '../api'
+import { THEMES, gotoReady, logPage, openQuickLog, setTheme, shot, signInAsNewUser } from '../helpers'
 
-// Mock data lives in the browser's copy of the service, so every change is followed by client-side
-// navigation (clicks), never page.goto, which would reload the seeds.
+// Every test signs in as its own user, so the foods it creates, edits and deletes never leak into other tests.
+
+const food = (name: string, category: string, kcal: number, over: Partial<IngredientBody> = {}): IngredientBody =>
+  ({ name, category, kcal, protein: 5, carbs: 10, fat: 2, ...over })
+
+/** Three foods, created out of name order to show the list sorts by name. */
+const SEEDS = [
+  food('Salsa verde', 'condiments', 45),
+  food('Bakery sourdough', 'grains', 260, { protein: 9, carbs: 51, fat: 2, portions: [{ label: '1 slice', grams: 50 }] }),
+  food('Basil pesto', 'condiments', 430, { protein: 5, carbs: 6, fat: 43 }),
+]
+
+async function seedFoods(user: TestUser, foods: IngredientBody[]) {
+  for (const f of foods) await createIngredient(user, f)
+}
 
 /** Opens My foods from /food, the way a user gets there. */
 const openMyFoods = async (page: Page) => {
@@ -15,131 +29,123 @@ const openMyFoods = async (page: Page) => {
 const rows = (page: Page) => page.getByRole('main').getByRole('listitem')
 const row = (page: Page, name: string) => rows(page).filter({ hasText: name })
 
-test.beforeEach(async ({ context, baseURL }) => {
-  await signIn(context, baseURL!)
-})
-
 for (const theme of THEMES) {
   test.describe(`my foods (${theme})`, () => {
     test.beforeEach(async ({ context, baseURL }) => {
       await setTheme(context, theme, baseURL!)
     })
 
-    test('lists the custom foods from /food', async ({ page }, testInfo) => {
+    test('lists the user\'s foods by name', async ({ page, context, baseURL }, testInfo) => {
+      await seedFoods(await signInAsNewUser(context, baseURL!, 'myfoods-list'), SEEDS)
       await gotoReady(page, '/food')
       await shot(page, testInfo, 'my-foods-link', theme)
       await page.getByRole('link', { name: 'My foods' }).click()
       await expect(page).toHaveURL('/food/my-foods')
-      await expect(rows(page)).toHaveCount(4)
-      await expect(rows(page).first()).toContainText('Basil pesto')
-      await expect(row(page, 'Bakery sourdough')).toContainText('100 g · Grains & starches · 260 kcal · $0.80')
-      await expect(page.getByText('4 foods')).toBeVisible()
+      await expect(rows(page)).toHaveText([/^Bakery sourdough/, /^Basil pesto/, /^Salsa verde/])
+      await expect(row(page, 'Bakery sourdough')).toContainText('Grains & starches · 100 g · 260 kcal · 1 portion')
+      await expect(page.getByText('3 foods')).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Load more' })).toHaveCount(0)
       await shot(page, testInfo, 'my-foods-list', theme)
     })
 
-    test('filters by category', async ({ page }, testInfo) => {
+    test('filters by category', async ({ page, context, baseURL }, testInfo) => {
+      await seedFoods(await signInAsNewUser(context, baseURL!, 'myfoods-filter'), SEEDS)
       await openMyFoods(page)
       const category = page.getByLabel('Category')
-      await expect(category.locator('option')).toHaveCount(15)
+      await expect(category.locator('option')).toHaveCount(14)
+      await expect(category.locator('option', { hasText: 'No category' })).toHaveCount(0)
 
-      await category.selectOption({ label: 'Grains & starches' })
-      await expect(rows(page)).toHaveCount(1)
-      await expect(page.getByText('1 food', { exact: true })).toBeVisible()
-
-      await category.selectOption({ label: 'No category' })
-      await expect(rows(page)).toHaveCount(1)
-      await expect(rows(page).first()).toContainText('Basil pesto')
+      await category.selectOption({ label: 'Condiments & sweeteners' })
+      await expect(rows(page)).toHaveCount(2)
+      await expect(page.getByText('2 foods')).toBeVisible()
 
       await category.selectOption({ label: 'Fruit' })
       await expect(page.getByText('No foods in Fruit.')).toBeVisible()
       await shot(page, testInfo, 'my-foods-filter-empty', theme)
       await page.getByRole('button', { name: 'Show all' }).click()
-      await expect(rows(page)).toHaveCount(4)
+      await expect(rows(page)).toHaveCount(3)
       await expect(category.locator('option:checked')).toHaveText('All categories')
     })
 
-    test('edits a food and the quick log shows the change', async ({ page }, testInfo) => {
+    test('creates, edits and deletes a food with portions', async ({ page, context, baseURL }, testInfo) => {
+      await signInAsNewUser(context, baseURL!, 'myfoods-crud')
       await openMyFoods(page)
-      await page.getByRole('link', { name: 'Edit Salsa verde' }).click()
-      await expect(page.getByRole('heading', { name: 'Edit Salsa verde' })).toBeVisible()
-      await expect(page.getByLabel('Ingredient name')).toHaveValue('Salsa verde')
-      await expect(page.getByLabel('Calories (kcal)')).toHaveValue('45')
-      await expect(page.getByLabel('Category (optional)').locator('option:checked')).toHaveText('Condiments & sweeteners')
-      await shot(page, testInfo, 'my-foods-edit', theme)
+      await expect(page.getByText('No custom foods yet.')).toBeVisible()
 
-      await page.getByLabel('Calories (kcal)').fill('50')
-      await page.getByLabel('Category (optional)').selectOption({ label: 'Vegetables' })
-      await page.getByRole('button', { name: 'Save changes' }).click()
-      await expect(page).toHaveURL('/food/my-foods')
-      await expect(row(page, 'Salsa verde')).toContainText('100 g · Vegetables · 50 kcal')
-
-      await openQuickLog(page)
+      // Create, with a portion, fiber and a price.
+      await page.getByRole('button', { name: 'New ingredient' }).first().click()
       const dialog = page.getByRole('dialog')
-      await dialog.getByRole('button', { name: 'My Foods' }).click()
-      await expect(dialog.getByText('My food · 100 g · 50 kcal')).toBeVisible()
-    })
+      await dialog.getByLabel('Name', { exact: true }).fill('Protein bar, chocolate')
+      await dialog.getByLabel('Category').selectOption({ label: 'Supplements' })
+      await dialog.getByLabel('Calories', { exact: true }).fill('380')
+      await dialog.getByLabel('Protein (g)').fill('33')
+      await dialog.getByLabel('Carbs (g)').fill('38')
+      await dialog.getByLabel('Fat (g)').fill('11')
+      await dialog.getByLabel('Fiber (g, optional)').fill('9')
+      await dialog.getByRole('button', { name: '+ Add portion' }).click()
+      await dialog.getByLabel('Portion 1 name').fill('1 bar')
+      await dialog.getByLabel('Portion 1 grams').fill('45')
+      await dialog.getByLabel('Price (USD, per 100 g)').fill('1.20')
+      await shot(page, testInfo, 'ingredient-form-portions', theme)
+      const created = page.waitForRequest(r => r.url().endsWith('/v1/nutrition/ingredients') && r.method() === 'POST')
+      await dialog.getByRole('button', { name: 'Save ingredient' }).click()
+      expect((await created).postDataJSON()).toMatchObject({ name: 'Protein bar, chocolate', fiber: 9, portions: [{ label: '1 bar', grams: 45 }] })
+      await expect(dialog.getByText('Protein bar, chocolate saved to My foods.')).toBeVisible()
+      await dialog.getByRole('button', { name: 'Done' }).click()
+      await expect(row(page, 'Protein bar, chocolate')).toContainText('Supplements · 100 g · 380 kcal · 1 portion · $1.20')
 
-    test('clearing the price removes it from the row', async ({ page }) => {
-      await openMyFoods(page)
-      await expect(row(page, 'Homemade protein bar')).toContainText('$1.20')
-      await page.getByRole('link', { name: 'Edit Homemade protein bar' }).click()
-      await expect(page.getByLabel(/^Price/)).toHaveValue('1.20')
-      await page.getByLabel(/^Price/).fill('')
+      // Edit: rename the portion and add a second one. The first keeps its key.
+      await page.getByRole('link', { name: 'Edit Protein bar, chocolate' }).click()
+      await expect(page.getByRole('heading', { name: 'Edit Protein bar, chocolate' })).toBeVisible()
+      await expect(page.getByLabel('Fiber (g, optional)')).toHaveValue('9')
+      await expect(page.getByLabel('Price (USD, per 100 g)')).toHaveValue('1.20')
+      await page.getByLabel('Portion 1 name').fill('1 small bar')
+      await page.getByRole('button', { name: '+ Add portion' }).click()
+      await page.getByLabel('Portion 2 name').fill('1 big bar')
+      await page.getByLabel('Portion 2 grams').fill('60')
+      await shot(page, testInfo, 'my-foods-edit', theme)
+      const patched = page.waitForRequest(r => r.method() === 'PATCH')
       await page.getByRole('button', { name: 'Save changes' }).click()
+      const body = (await patched).postDataJSON() as { portions: { key?: string, label: string, grams: number }[] }
+      expect(body.portions).toEqual([{ key: expect.stringMatching(/^p_/), label: '1 small bar', grams: 45 }, { label: '1 big bar', grams: 60 }])
       await expect(page).toHaveURL('/food/my-foods')
-      await expect(row(page, 'Homemade protein bar')).toContainText('1 piece · Other · 210 kcal')
-      await expect(row(page, 'Homemade protein bar')).not.toContainText('$')
-    })
+      await expect(row(page, 'Protein bar, chocolate')).toContainText('2 portions')
 
-    test('deletes a food after confirming in the row', async ({ page }, testInfo) => {
-      await openMyFoods(page)
-      await page.getByRole('button', { name: 'Delete Basil pesto' }).click()
-      const confirm = page.getByRole('group', { name: 'Delete Basil pesto?' })
-      await expect(confirm).toBeVisible()
+      // The quick log's My Foods lists it with the recipes.
+      await openQuickLog(page)
+      await logPage(page).getByRole('button', { name: 'My Foods' }).click()
+      await expect(logPage(page).getByText('My food · Supplements · 100 g · 380 kcal')).toBeVisible()
+      await logPage(page).getByRole('button', { name: 'Close' }).click()
+
+      // Delete, after confirming in the row.
+      await page.getByRole('button', { name: 'Delete Protein bar, chocolate' }).click()
+      const confirm = page.getByRole('group', { name: 'Delete Protein bar, chocolate?' })
       await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused()
       await shot(page, testInfo, 'my-foods-confirm-delete', theme)
-
-      await confirm.getByRole('button', { name: 'Cancel' }).click()
-      await expect(rows(page)).toHaveCount(4)
-      await expect(page.getByRole('button', { name: 'Delete Basil pesto' })).toBeFocused()
-
-      await page.getByRole('button', { name: 'Delete Basil pesto' }).click()
-      await page.keyboard.press('Escape')
-      await expect(confirm).toBeHidden()
-      await expect(rows(page)).toHaveCount(4)
-
-      await page.getByRole('button', { name: 'Delete Basil pesto' }).click()
+      const deleted = page.waitForRequest(r => r.method() === 'DELETE')
       await confirm.getByRole('button', { name: 'Delete' }).click()
-      await expect(rows(page)).toHaveCount(3)
-      await expect(row(page, 'Basil pesto')).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Delete Salsa verde' })).toBeFocused()
-
-      await page.getByRole('link', { name: '← Food' }).click()
-      await page.getByRole('link', { name: 'New recipe' }).click()
-      await page.getByLabel('Add an ingredient').fill('pesto')
-      await expect(page.getByRole('button', { name: /^Basil pesto/ })).toHaveCount(0)
-      await page.getByLabel('Add an ingredient').fill('sourdough')
-      await expect(page.getByRole('button', { name: /^Bakery sourdough/ })).toBeVisible()
+      await deleted
+      await expect(page.getByText('No custom foods yet.')).toBeVisible()
     })
 
-    test('a food created from the page appears at the top', async ({ page }) => {
+    test('loads 100 at a time', async ({ page, context, baseURL }) => {
+      test.skip(theme === 'dark', 'pagination doesn\'t depend on the theme')
+      const user = await signInAsNewUser(context, baseURL!, 'myfoods-many')
+      const names = Array.from({ length: 101 }, (_, i) => `Food ${String(i + 1).padStart(3, '0')}`)
+      await Promise.all(names.map(name => createIngredient(user, food(name, 'other', 100))))
       await openMyFoods(page)
-      await page.getByRole('button', { name: 'New ingredient' }).click()
-      const dialog = page.getByRole('dialog')
-      await dialog.getByLabel('Ingredient name').fill('Skyr')
-      await dialog.getByLabel('Calories (kcal)').fill('60')
-      await dialog.getByRole('button', { name: 'Save ingredient' }).click()
-      await dialog.getByRole('button', { name: 'Done' }).click()
-      await expect(rows(page)).toHaveCount(5)
-      await expect(rows(page).first()).toContainText('Skyr')
+      await expect(rows(page)).toHaveCount(100)
+      await page.getByRole('button', { name: 'Load more' }).click()
+      await expect(rows(page)).toHaveCount(101)
+      await expect(rows(page).last()).toContainText('Food 101')
+      await expect(page.getByRole('button', { name: 'Load more' })).toHaveCount(0)
     })
 
-    test('an unknown food shows a not-found message', async ({ page }, testInfo) => {
-      await gotoReady(page, '/food/my-foods/unknown')
+    test('an unknown food shows a not-found message', async ({ page, context, baseURL }, testInfo) => {
+      await signInAsNewUser(context, baseURL!, 'myfoods-unknown')
+      await gotoReady(page, '/food/my-foods/u_unknown')
       await expect(page.getByText('This food doesn\'t exist anymore.')).toBeVisible()
       await shot(page, testInfo, 'my-foods-not-found', theme)
-      await page.getByRole('link', { name: 'Back to My foods' }).click()
-      await expect(rows(page)).toHaveCount(4)
     })
   })
 }

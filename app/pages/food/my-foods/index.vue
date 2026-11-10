@@ -1,20 +1,27 @@
 <script setup lang="ts">
+import type { FoodItem } from '~/types/food'
+
 definePageMeta({ tab: 'food' })
 
 const { current, open } = useModal()
-const { foods, filter, filtered, deletingId, refresh, remove } = useMyFoods()
+const {
+  foods, loading, failed, retry, hasMore, loadingMore, loadMoreFailed, loadMore, filter, filtered, deletingId, refresh, remove,
+} = useMyFoods()
 
 const count = computed(() => `${filtered.value.length} ${filtered.value.length === 1 ? 'food' : 'foods'}`)
 const emptyFilterText = computed(() => {
   const f = filter.value
-  if (f === 'all') return ''
-  return f === 'none' ? 'No foods without a category.' : `No foods in ${categoryLabel(f)}.`
+  return f === 'all' ? '' : `No foods in ${categoryLabel(f)}.`
 })
 
-// The list is loaded-once shared state; coming back from the edit page must show the saved changes.
-onMounted(() => {
-  if (foods.value) refresh()
-})
+/** "Eggs · 100 g · 155 kcal · 1 portion · $1.20", all per 100 g. */
+function rowMeta(food: FoodItem) {
+  const n = food.portions.length
+  return [
+    food.category && categoryLabel(food.category), '100 g', `${Math.round(food.kcal)} kcal`,
+    n && `${n} ${n === 1 ? 'portion' : 'portions'}`, food.price !== undefined && formatPrice(food.price),
+  ].filter(Boolean).join(' · ')
+}
 
 // The New ingredient modal saves straight to the service; reload once it closes.
 watch(current, (key, prev) => {
@@ -43,10 +50,24 @@ async function cancelDelete() {
   deleteBtns.get(id)?.focus()
 }
 
+// The food whose delete failed; its row says so until the next try.
+const deleteFailedId = ref<string | null>(null)
+
 /** Keep keyboard focus in the list: next row's Delete, else the previous one, else the filter. */
 async function confirmDelete(id: string) {
   const idx = filtered.value.findIndex(f => f.id === id)
-  await remove(id)
+  deleteFailedId.value = null
+  try {
+    await remove(id)
+  }
+  catch {
+    // The row stays; the confirm closes and the row explains what happened.
+    deleteFailedId.value = id
+    confirmingId.value = null
+    await nextTick()
+    deleteBtns.get(id)?.focus()
+    return
+  }
   confirmingId.value = null
   await nextTick()
   const next = filtered.value[idx] ?? filtered.value[idx - 1]
@@ -67,7 +88,12 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
       <button type="button" :class="btnCls" @click="open('ingredient')">New ingredient</button>
     </div>
 
-    <template v-if="foods">
+    <div v-if="!foods && loading" class="rounded-2xl px-5 py-8 shadow-xs text-center text-[14.5px]" :class="[cardCls, inkSoftCls]">Loading your foods…</div>
+    <div v-else-if="!foods && failed" role="alert" class="rounded-2xl px-5 py-8 shadow-xs flex flex-col items-center gap-3" :class="cardCls">
+      <p class="text-[14.5px]" :class="inkSoftCls">Couldn't load your foods.</p>
+      <button type="button" class="px-4 py-2 rounded-full bg-ink text-white dark:bg-white dark:text-black text-[13.5px] font-semibold" :class="focusRingCls" @click="retry">Retry</button>
+    </div>
+    <template v-else-if="foods">
       <template v-if="foods.length">
         <div class="flex items-end gap-3">
           <!-- Same field as the form's Category select; the card colour keeps it visible on the page background. -->
@@ -76,7 +102,6 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
             <select ref="filterSelect" v-model="filter" class="w-full bg-transparent outline-hidden text-base sm:text-[15px] font-semibold dark:[color-scheme:dark]" :class="inkCls">
               <option value="all">All categories</option>
               <option v-for="cat in CATEGORIES" :key="cat.key" :value="cat.key">{{ cat.label }}</option>
-              <option value="none">No category</option>
             </select>
           </label>
           <span class="pb-3 text-[13px] whitespace-nowrap" :class="inkFaintCls" aria-live="polite">{{ count }}</span>
@@ -91,9 +116,11 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
               :class="i > 0 && ['border-t', dividerCls]"
               @keydown.esc="confirmingId === food.id && cancelDelete()"
             >
+              <AppFoodThumb :food="food" />
               <div class="min-w-0 flex-1">
                 <div class="text-[14.5px] font-semibold truncate" :class="inkCls">{{ food.name }}</div>
-                <div class="text-xs" :class="inkFaintCls">{{ food.serving }}<template v-if="food.category"> · {{ categoryLabel(food.category) }}</template> · {{ food.kcal }} kcal<template v-if="food.price !== undefined"> · {{ formatPrice(food.price) }}</template></div>
+                <div class="text-xs" :class="inkFaintCls">{{ rowMeta(food) }}</div>
+                <div v-if="deleteFailedId === food.id" role="alert" class="text-xs mt-0.5 text-accent-coral dark:text-accent-coral-dark">Couldn't delete {{ food.name }}.</div>
               </div>
               <!-- Wraps under the name on phones so a long name keeps its line. -->
               <div v-if="confirmingId === food.id" class="basis-full sm:basis-auto flex items-center justify-end gap-2" role="group" :aria-label="`Delete ${food.name}?`">
@@ -126,11 +153,32 @@ const btnCls = ['px-3.5 py-2 rounded-[10px] text-[13px] font-semibold shadow-xs'
             </li>
           </ul>
         </section>
-
         <div v-else class="rounded-2xl px-5 py-8 shadow-xs flex flex-col items-center gap-3" :class="cardCls">
           <p class="text-[14.5px]" :class="inkSoftCls">{{ emptyFilterText }}</p>
           <button type="button" class="px-4 py-2 rounded-full border text-[13.5px] font-semibold" :class="[dividerCls, inkCls, focusRingCls]" @click="filter = 'all'">Show all</button>
         </div>
+
+        <div v-if="hasMore && loadMoreFailed" class="flex flex-wrap items-center gap-x-3 gap-y-2" role="alert">
+          <span class="text-[13.5px]" :class="inkSoftCls">Couldn't load more foods.</span>
+          <button
+            type="button"
+            class="min-h-11 sm:min-h-8 px-3.5 rounded-[10px] text-[13px] font-semibold bg-ink text-white dark:bg-white dark:text-black"
+            :class="focusRingCls"
+            @click="loadMore"
+          >
+            Retry
+          </button>
+        </div>
+        <button
+          v-else-if="hasMore"
+          type="button"
+          class="min-h-11 sm:min-h-9 px-3.5 rounded-[10px] text-[13px] font-semibold self-start border disabled:opacity-50"
+          :class="[dividerCls, inkCls, focusRingCls]"
+          :disabled="loadingMore"
+          @click="loadMore"
+        >
+          {{ loadingMore ? 'Loading…' : 'Load more' }}
+        </button>
       </template>
 
       <div v-else class="rounded-2xl px-5 py-8 shadow-xs flex flex-col items-center gap-3" :class="cardCls">

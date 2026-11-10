@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import type { FoodItem } from '~/types/food'
 
-const chicken: FoodItem = { id: 'c', name: 'Chicken breast, boiled', brand: 'Generic', serving: '100g', per: 100, unit: 'g', step: 10, kcal: 150, p: 30, c: 0, f: 3.2, price: 1.1 }
-const egg: FoodItem = { id: 'e', name: 'Egg, boiled', brand: 'Generic', serving: '1 egg', per: 1, unit: 'piece', pieceName: 'egg', step: 1, kcal: 78, p: 6.3, c: 0.6, f: 5.3, price: 0.4 }
-const tahini: FoodItem = { id: 't', name: 'Tahini', brand: 'My food', serving: '15g', per: 15, unit: 'g', step: 5, kcal: 90, p: 3, c: 3, f: 8 }
+const ingredient = (over: Partial<FoodItem>): FoodItem => ({
+  id: 'x', name: 'x', serving: '100 g', per: 100, unit: 'g', step: 10, isMine: false, kcal: 0, p: 0, c: 0, f: 0, portions: [], photos: [], ...over,
+})
+// Prices are per 100 g.
+const chicken = ingredient({ id: 'c', name: 'Chicken breast, boiled', kcal: 150, p: 30, f: 3.2, price: 1.1 })
+const egg = ingredient({ id: 'e', name: 'Egg, whole, hard-boiled', kcal: 155, price: 0.8, portions: [{ key: 'large', label: '1 large egg', grams: 50 }] })
+const bar = ingredient({ id: 'b', name: 'Protein bar, chocolate', isMine: true, price: 1.2, portions: [{ key: 'p_bar', label: '1 bar', grams: 45 }] })
+const tahini = ingredient({ id: 't', name: 'Tahini', isMine: true, kcal: 595 })
 
 describe('scalePrice', () => {
-  it('scales the price by the amount over `per`', () => {
+  it('scales the price per 100 g to the grams', () => {
     expect(scalePrice(chicken, 200)).toBeCloseTo(2.2)
-    expect(scalePrice(egg, 3)).toBeCloseTo(1.2)
+  })
+
+  it('costs a portion through its grams', () => {
+    expect(scalePrice(egg, 3, 'large')).toBeCloseTo(1.2)
+    expect(formatPrice(scalePrice(bar, 1, 'p_bar')!)).toBe('$0.54')
   })
 
   it('is null for an unpriced item', () => {
@@ -18,7 +27,7 @@ describe('scalePrice', () => {
 
 describe('sumPrice', () => {
   it('sums priced lines and counts the unpriced ones', () => {
-    const sum = sumPrice([{ item: chicken, amount: 200 }, { item: tahini, amount: 15 }, { item: egg, amount: 2 }])
+    const sum = sumPrice([{ item: chicken, amount: 200 }, { item: tahini, amount: 15 }, { item: egg, amount: 2, portion: 'large' }])
     expect(sum.total).toBeCloseTo(3)
     expect(sum.unpriced).toBe(1)
   })

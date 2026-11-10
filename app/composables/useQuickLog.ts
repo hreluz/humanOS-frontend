@@ -22,20 +22,19 @@ const KCAL_STEP = 10
 const FALLBACK_KG = 75
 const NOW_TICK_MS = 30_000
 
-/** Opens the quick log on a tab; usable anywhere without loading the sheet's data. */
-export function useQuickLogLauncher() {
-  const tab = useState<QuickLogTab>('quick-log-tab', () => 'food')
-  const { open } = useModal()
-  function openQuickLog(to?: QuickLogTab) {
-    if (to) tab.value = to
-    open('quickLog')
-  }
-  return { tab, openQuickLog }
+/** The tab named by `?tab=`; anything missing or unknown reads as food. */
+export function parseQuickLogTab(value: unknown): QuickLogTab {
+  return QUICK_LOG_TABS.find(t => t.key === value)?.key ?? 'food'
 }
 
 export function useQuickLog() {
-  const { tab } = useQuickLogLauncher()
-  const { close } = useModal()
+  const route = useRoute()
+  const router = useRouter()
+  // The tab lives in the URL so it survives reloads and links; switching replaces it, so Back leaves the page instead of stepping through tabs.
+  const tab = computed<QuickLogTab>({
+    get: () => parseQuickLogTab(route.query.tab),
+    set: (to: QuickLogTab) => { navigateTo({ query: { tab: to } }, { replace: true }) },
+  })
   const { profile } = useAuth()
   const { addFoods } = useFoodLog()
   const { logActivity, logWater } = useTodayActivity()
@@ -91,7 +90,7 @@ export function useQuickLog() {
 
   function toggleFood(item: FoodItem) {
     if (inBasket(item.id)) basket.value = basket.value.filter(b => b.item.id !== item.id)
-    else basket.value.push({ item, amount: item.per, ...item.recipe && { ingredients: recipePortion(item, item.per) } })
+    else basket.value.push({ item, ...startingAmount(item), ...item.recipe && { ingredients: recipePortion(item, item.per) } })
   }
 
   /** The recipe's own amount of an ingredient for this entry's servings; undefined if it isn't in the recipe. */
@@ -121,7 +120,16 @@ export function useQuickLog() {
 
   function stepFood(id: string, dir: 1 | -1) {
     const entry = entryFor(id)
-    if (entry) setFoodAmount(id, stepAmount(entry.amount, entry.item.step, dir))
+    if (entry) setFoodAmount(id, stepAmount(entry.amount, stepFor(entry.item, entry.portion), dir))
+  }
+
+  /** Switches a basket line to grams (`null`) or one of its portions: 100 g or 1 of the portion, nothing converted. */
+  function setUnit(id: string, portion: string | null) {
+    const entry = entryFor(id)
+    if (!entry || entry.item.recipe) return
+    entry.amount = amountForUnit(portion)
+    if (portion) entry.portion = portion
+    else delete entry.portion
   }
 
   const ingredientIn = (entryId: string, ingredientId: string) => entryFor(entryId)?.ingredients?.find(i => i.item.id === ingredientId)
@@ -133,7 +141,7 @@ export function useQuickLog() {
 
   function stepIngredient(entryId: string, ingredientId: string, dir: 1 | -1) {
     const ing = ingredientIn(entryId, ingredientId)
-    if (ing) ing.amount = stepAmount(ing.amount, ing.item.step, dir)
+    if (ing) ing.amount = stepAmount(ing.amount, stepFor(ing.item, ing.portion), dir)
   }
 
   function removeIngredient(entryId: string, ingredientId: string) {
@@ -240,6 +248,15 @@ export function useQuickLog() {
     return `Log ${waterMl.value} ml water`
   })
 
+  /** Something picked that isn't logged yet; leaving would lose it. Water always has an amount and the time always has a value, so neither counts. */
+  const hasApproved = computed(() => basket.value.length > 0 || activity.value !== null)
+
+  /** Back to where the user came from, or Home when /log was opened directly. */
+  function leave() {
+    if (import.meta.client && window.history.state?.back) router.back()
+    else navigateTo('/')
+  }
+
   async function submit() {
     if (!canSubmit.value) return
     saving.value = true
@@ -248,7 +265,10 @@ export function useQuickLog() {
       if (tab.value === 'food') await addFoods(basket.value, meal.value, when)
       else if (tab.value === 'activity') await logActivity(activityKey.value!, activityAmount.value, kg.value, activityKcal.value, when)
       else await logWater(waterMl.value, when)
-      close()
+      // Logged: nothing is left to lose, so leaving doesn't ask.
+      basket.value = []
+      activityKey.value = null
+      leave()
     }
     finally {
       saving.value = false
@@ -258,11 +278,11 @@ export function useQuickLog() {
   return {
     tab, search, saving, kg,
     now, at, days, isNow, isToday, whenDay, whenTime, resetWhen,
-    basket, meal, inBasket, toggleFood, stepFood, setFoodAmount,
+    basket, meal, inBasket, toggleFood, stepFood, setFoodAmount, setUnit,
     recipeAmount, isEdited, setIngredientAmount, stepIngredient, removeIngredient, removedIngredients, restoreIngredient, resetIngredients,
     activityQuery, activityResults, activity, activityAmount, activityKcal, selectActivity, stepActivity,
     estimatedKcal, kcalOverride, kcalModel, stepKcal, resetKcal,
     waterMl, stepWater,
-    impact, canSubmit, submitLabel, submit,
+    impact, canSubmit, submitLabel, submit, hasApproved, leave,
   }
 }

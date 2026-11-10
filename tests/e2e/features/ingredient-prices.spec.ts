@@ -1,70 +1,66 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { THEMES, addIngredients, gotoReady, setTheme, shot, signIn } from '../helpers'
+import { THEMES, addIngredients, gotoReady, setTheme, shot, signInAsNewUser } from '../helpers'
 
-// Mock prices: chicken breast, boiled is $1.10 per 100 g (step 10 g); a boiled egg is $0.40.
-const CHICKEN = 'Chicken breast, boiled'
-const EGG = 'Egg, boiled'
+// Catalog ingredients are unpriced until the prices API (backend SPEC 24); only the user's own foods carry a price.
 
-const createTahini = async (page: Page) => {
-  await page.getByLabel('Add an ingredient').fill('Tahini')
-  await page.getByRole('button', { name: '+ Create “Tahini”' }).click()
-  await page.getByLabel('Nutrition per').fill('15')
-  await page.getByLabel('Calories (kcal)').fill('90')
+/** Creates a protein bar priced at $1.20 per 100 g, with a 45 g bar, from the recipe picker; it joins the recipe at 1 bar. */
+async function addPricedBar(page: Page) {
+  await page.getByLabel('Add an ingredient').fill('Protein bar, chocolate')
+  await page.getByRole('button', { name: '+ Create “Protein bar, chocolate”' }).click()
+  await page.getByLabel('Category').selectOption({ label: 'Supplements' })
+  await page.getByLabel('Calories', { exact: true }).fill('380')
+  await page.getByRole('button', { name: '+ Add portion' }).click()
+  await page.getByLabel('Portion 1 name').fill('1 bar')
+  await page.getByLabel('Portion 1 grams').fill('45')
+  await page.getByLabel('Price (USD, per 100 g)').fill('1.20')
   await page.getByRole('button', { name: 'Add to recipe' }).click()
-  await expect(page.getByText('Tahini', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('line-cost')).toHaveText('$0.54')
 }
-
-test.beforeEach(async ({ context, baseURL }) => {
-  await signIn(context, baseURL!)
-})
 
 for (const theme of THEMES) {
   test.describe(`ingredient prices (${theme})`, () => {
     test.beforeEach(async ({ context, page, baseURL }) => {
+      await signInAsNewUser(context, baseURL!, 'prices')
       await setTheme(context, theme, baseURL!)
       await gotoReady(page, '/food/recipes/new')
     })
 
-    test('picker rows show the catalog price', async ({ page }, testInfo) => {
-      await page.getByLabel('Add an ingredient').fill('chicken breast')
-      await expect(page.getByRole('button', { name: new RegExp(`^${CHICKEN}.*· \\$1\\.10$`) })).toBeVisible()
+    test('catalog picker rows show no price', async ({ page }, testInfo) => {
+      await page.getByLabel('Add an ingredient').fill('banana')
+      const row = page.getByRole('button', { name: /^Banana/ })
+      await expect(row).toContainText('Fruit · 100 g · 97 kcal')
+      await expect(row).not.toContainText('$')
       await shot(page, testInfo, 'prices-picker', theme)
     })
 
-    test('a line costs its amount and follows the stepper', async ({ page }, testInfo) => {
-      await addIngredients(page, CHICKEN)
-      const lineCost = page.getByTestId('line-cost')
-      await expect(lineCost).toHaveText('$1.10')
-      await page.getByRole('button', { name: `More ${CHICKEN}` }).click()
-      await expect(lineCost).toHaveText('$1.21')
+    test('a line cost follows the stepper', async ({ page }, testInfo) => {
+      await addPricedBar(page)
+      await page.getByRole('button', { name: 'More Protein bar, chocolate' }).click()
+      await expect(page.getByTestId('line-cost')).toHaveText('$1.08')
+      await page.getByLabel('Unit for Protein bar, chocolate').selectOption({ label: 'g' })
+      await expect(page.getByTestId('line-cost')).toHaveText('$1.20')
       await page.getByLabel('Add an ingredient').blur()
       await shot(page, testInfo, 'prices-line', theme)
     })
 
-    test('summary splits the cost across servings', async ({ page }, testInfo) => {
-      test.skip(testInfo.project.name !== 'desktop', 'summary card is desktop only')
-      await addIngredients(page, CHICKEN, EGG)
-      await page.getByRole('button', { name: 'More servings' }).click()
-      await expect(page.getByTestId('per-serving-cost')).toHaveText('$0.75')
-      await expect(page.getByTestId('whole-recipe-cost')).toHaveText('$1.50')
-      await page.getByLabel('Add an ingredient').blur()
-      await shot(page, testInfo, 'prices-summary', theme)
-    })
-
-    test('a custom ingredient is excluded with a note', async ({ page }, testInfo) => {
+    test('a catalog line is excluded with a note', async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'desktop', 'the note is on the desktop card only')
-      await addIngredients(page, CHICKEN)
-      await createTahini(page)
+      await addPricedBar(page)
+      await addIngredients(page, 'Banana')
       await expect(page.getByTestId('line-cost')).toHaveCount(1)
-      await expect(page.getByTestId('per-serving-cost')).toHaveText('$1.10')
+      await expect(page.getByTestId('per-serving-cost')).toHaveText('$0.54')
       await expect(page.getByText('Excludes 1 ingredient without a price')).toBeVisible()
+      await page.getByRole('button', { name: 'More servings' }).click()
+      await expect(page.getByTestId('per-serving-cost')).toHaveText('$0.27')
+      await expect(page.getByTestId('whole-recipe-cost')).toHaveText('$0.54')
+      await page.getByLabel('Add an ingredient').blur()
       await shot(page, testInfo, 'prices-unpriced-note', theme)
     })
 
-    test('only custom ingredients show no cost', async ({ page }, testInfo) => {
+    test('only catalog ingredients show no cost', async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'desktop', 'summary card is desktop only')
-      await createTahini(page)
+      await addIngredients(page, 'Banana')
       await expect(page.getByTestId('per-serving-cost')).toHaveCount(0)
       await expect(page.getByTestId('line-cost')).toHaveCount(0)
       await expect(page.getByText(/without a price/)).toHaveCount(0)
@@ -73,11 +69,12 @@ for (const theme of THEMES) {
     test('phone bar shows the cost per serving', async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'mobile', 'pinned bar is mobile only')
       // Without a name the bar shows the save hint instead of the summary.
-      await page.getByLabel('Recipe name').fill('Chicken & Eggs')
-      await addIngredients(page, CHICKEN, EGG)
+      await page.getByLabel('Recipe name').fill('Bar & banana')
+      await addPricedBar(page)
+      await addIngredients(page, 'Banana')
       await page.getByRole('button', { name: 'More servings' }).click()
       await page.getByLabel('Add an ingredient').blur()
-      await expect(page.getByTestId('per-serving-cost-bar')).toHaveText('$0.75')
+      await expect(page.getByTestId('per-serving-cost-bar')).toHaveText('$0.27')
       await shot(page, testInfo, 'prices-phone-bar', theme)
     })
   })

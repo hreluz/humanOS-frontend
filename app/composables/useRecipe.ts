@@ -1,39 +1,84 @@
 import type { FoodItem, RecipeDraft } from '~/types/food'
 import * as foodService from '~/services/foodService'
 
+/** The recipe picker's ingredient search on the API: 3 letters minimum, debounced, latest request wins. Recipes aren't offered. */
+function useIngredientSearch() {
+  const query = ref('')
+  const results = ref<FoodItem[] | null>(null)
+  const loading = ref(false)
+  const failed = ref(false)
+  const needsMore = computed(() => query.value.trim().length < foodService.MIN_SEARCH_LENGTH)
+
+  let requestId = 0
+  let debounce: ReturnType<typeof setTimeout> | undefined
+
+  async function run() {
+    clearTimeout(debounce)
+    const id = ++requestId
+    failed.value = false
+    if (needsMore.value) {
+      results.value = null
+      loading.value = false
+      return
+    }
+    loading.value = true
+    try {
+      const found = await foodService.searchIngredients(query.value.trim())
+      if (id === requestId) results.value = found
+    }
+    catch {
+      if (id === requestId) failed.value = true
+    }
+    finally {
+      if (id === requestId) loading.value = false
+    }
+  }
+
+  watch(query, () => {
+    clearTimeout(debounce)
+    // Too short: clear right away; otherwise wait for a pause in typing.
+    if (needsMore.value) run()
+    else debounce = setTimeout(run, 200)
+  })
+  onBeforeUnmount(() => clearTimeout(debounce))
+
+  return { query, results, loading, failed, needsMore, retry: run }
+}
+
 export function useRecipe() {
   const recipe = ref<RecipeDraft | null>(null)
-  const catalog = ref<FoodItem[]>([])
   const pickerMode = ref<'list' | 'create'>('list')
-  const query = ref('')
+  const { query, results, loading, failed, needsMore, retry } = useIngredientSearch()
   const saving = ref(false)
 
   foodService.getRecipeDraft().then((r) => { recipe.value = r })
-
-  async function refreshCatalog() {
-    catalog.value = await foodService.getIngredientOptions()
-  }
-  refreshCatalog()
-
-  const filteredCatalog = computed(() => catalog.value.filter(i => matchesQuery(i.name, query.value)))
 
   function changeServings(delta: number) {
     if (!recipe.value) return
     recipe.value.servings = Math.max(1, Math.min(12, recipe.value.servings + delta))
   }
 
-  // Adding something already listed means more of it, not a second row.
+  // Adding something already listed means one more step of its current unit, not a second row.
   function addIngredient(item: FoodItem) {
     const existing = recipe.value?.ingredients.find(i => i.item.id === item.id)
-    if (existing) existing.amount = stepAmount(existing.amount, item.step, 1)
-    else recipe.value?.ingredients.push({ item, amount: item.per })
+    if (existing) existing.amount = stepAmount(existing.amount, stepFor(existing.item, existing.portion), 1)
+    else recipe.value?.ingredients.push({ item, ...startingAmount(item) })
     query.value = ''
     pickerMode.value = 'list'
   }
 
   function stepIngredient(index: number, dir: 1 | -1) {
     const ing = recipe.value?.ingredients[index]
-    if (ing) ing.amount = stepAmount(ing.amount, ing.item.step, dir)
+    if (ing) ing.amount = stepAmount(ing.amount, stepFor(ing.item, ing.portion), dir)
+  }
+
+  /** Switches a line to grams (`null`) or one of its portions: 100 g or 1 of the portion, nothing converted. */
+  function setUnit(index: number, portion: string | null) {
+    const ing = recipe.value?.ingredients[index]
+    if (!ing) return
+    ing.amount = amountForUnit(portion)
+    if (portion) ing.portion = portion
+    else delete ing.portion
   }
 
   function removeIngredient(index: number) {
@@ -82,7 +127,7 @@ export function useRecipe() {
   }
 
   return {
-    recipe, catalog, filteredCatalog, query, pickerMode, saving, canSave, saveHint, totals, perServing, cost,
-    refreshCatalog, changeServings, addIngredient, stepIngredient, removeIngredient, startCreate, save,
+    recipe, query, results, loading, failed, needsMore, retry, pickerMode, saving, canSave, saveHint, totals, perServing, cost,
+    changeServings, addIngredient, stepIngredient, setUnit, removeIngredient, startCreate, save,
   }
 }

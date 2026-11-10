@@ -2,7 +2,7 @@
 definePageMeta({ tab: 'food' })
 
 const route = useRoute()
-const { food, pending } = useMyFood(String(route.params.id))
+const { food, pending, failed, retry } = useMyFood(String(route.params.id))
 </script>
 
 <template>
@@ -13,6 +13,10 @@ const { food, pending } = useMyFood(String(route.params.id))
       <div v-if="food" class="rounded-2xl p-5 shadow-xs flex flex-col gap-4" :class="cardCls">
         <h1 class="text-[20px] font-bold" :class="inkCls">Edit {{ food.name }}</h1>
         <AppIngredientForm :food="food" submit-label="Save changes" @updated="navigateTo('/food/my-foods')" />
+      </div>
+      <div v-else-if="failed" role="alert" class="rounded-2xl px-5 py-8 shadow-xs flex flex-col items-center gap-3" :class="cardCls">
+        <p class="text-[14.5px]" :class="inkSoftCls">Couldn't load this food.</p>
+        <button type="button" class="px-4 py-2 rounded-full bg-ink text-white dark:bg-white dark:text-black text-[13.5px] font-semibold" :class="focusRingCls" @click="retry">Retry</button>
       </div>
       <div v-else class="rounded-2xl px-5 py-8 shadow-xs flex flex-col items-center gap-3" :class="cardCls">
         <p class="text-[14.5px]" :class="inkSoftCls">This food doesn't exist anymore.</p>
